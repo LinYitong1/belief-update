@@ -1,0 +1,15 @@
+
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+output/
+figs/
+*.pdf
+*.png
+data/
+!data/df.xlsx
+.renv/
+renv.lock
+.DS_Store
+
