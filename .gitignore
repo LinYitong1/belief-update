@@ -1,15 +1,33 @@
-
+# R-specific session files
 .Rhistory
 .RData
+.Ruserdata
+
+# RStudio project files
 .Rproj.user/
-*.Rproj
+# Uncomment the next line to ignore project file (if using plain R)
+# *.Rproj
+
+# Output folders
 output/
 figs/
 *.pdf
 *.png
+
+# Data (ignore everything, but allow structured input)
 data/
+!data/s.csv
 !data/df.xlsx
+!data/README.md
+
+# Intermediate data
+*.rds
+*.rdata
+
+# renv (if used)
 .renv/
 renv.lock
-.DS_Store
 
+# System files
+.DS_Store
+Thumbs.db
