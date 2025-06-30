@@ -12,15 +12,6 @@ This repository contains R code and data for simulating, analyzing, and visualiz
 - `.gitignore`: standard ignore rules
 - `belief-update.Rproj`: RStudio project file
 
-## Setup
-
-\```r
-# Install dependencies
-install.packages(c('tidyverse', 'data.table', 'ggplot2', 'testthat'))
-
-# (Optional) Initialize renv for reproducibility
-renv::init()
-\```
 
 ## Usage
 
