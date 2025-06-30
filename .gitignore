@@ -9,16 +9,16 @@
 # *.Rproj
 
 # Output folders
-output/
-figs/
-*.pdf
-*.png
+#output/
+#fig/
+#*.pdf
+#*.png
 
 # Data (ignore everything, but allow structured input)
-data/
-!data/s.csv
-!data/df.xlsx
-!data/README.md
+#data/
+#!data/s.csv
+#!data/df.xlsx
+#!data/README.md
 
 # Intermediate data
 *.rds

@@ -50,7 +50,20 @@ extract_task_vlines <- function(df, task_label, heuristics) {
     pivot_longer(everything(), names_to = "heuristic", values_to = "value") %>%
     mutate(heuristic = factor(heuristic, levels = heuristics))
 }
-
+# Function:Filter out responses that match any heuristic
+filter_nonmatches <- function(df, tol = 0.03) {
+  preds <- data.frame(
+    Bayes = round(df$true_posterior, 2),
+    REP   = df$HR,
+    BO    = df$BR,
+    FC    = 1 - df$FAR,
+    JO    = round(df$BR * df$HR, 2),
+    LS    = round(df$HR - df$FAR, 2),
+    `50%` = 0.5
+  )
+  diffs <- abs(preds - df$response)
+  df[rowSums(diffs <= tol) == 0, ]
+}
 # ==================== Data Loading ============================
 # Function: Load and clean data from different sources
 load_clean_data <- function(path, type = c("experiment", "stengard", "sirota")) {
@@ -110,8 +123,8 @@ simulate_bs_models <- function(tt, n_iter = 91, mean_v = 0.6, mean_N = 5) {
     u  <- runif(1)  # asymmetry noise for BS_R
     
     # Simulate relative frequency responses
-    rf1 <- simulate_relative(tt$true_posterior, N1)
-    rf2 <- simulate_relative(tt$true_posterior, N2)
+    rf1 <- simulate_and_mutate(tt, N1)$relative_frequency
+    rf2 <- simulate_and_mutate(tt, N2)$relative_frequency
     
     # Store all parameters and simulated outcomes
     parameter_list[[i]] <- data.frame(

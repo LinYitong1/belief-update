@@ -7,7 +7,7 @@ This repository contains R code and data for simulating, analyzing, and visualiz
 - `data/`: raw and processed datasets (e.g., df.xlsx)
 - `R/`: model definitions and evaluation metrics
 - `scripts/`: main analysis pipeline
-- `figs/`: generated figures
+- `fig/`: generated figures
 - `tests/`: unit tests with testthat
 - `.gitignore`: standard ignore rules
 - `belief-update.Rproj`: RStudio project file
@@ -16,11 +16,11 @@ This repository contains R code and data for simulating, analyzing, and visualiz
 ## Usage
 
 Run each script in `scripts/` in order:
-
+0. `00_plot.R`
 1. `01_simulate_parameters.R`
 2. `02_generate_predictions.R`
-3. `03_analysis_plots.R`
+3. `03_summary_stats.R`
+4. `04_abcrf_indiviudal_inference.R`
 
-## License
 
-MIT License. Attribution appreciated.
+
