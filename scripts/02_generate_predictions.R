@@ -13,9 +13,9 @@ library(dplyr)
 library(tidyr)
 
 # Load data and models
-source("~/Research-Belief_updating_oneshot/models.R")
-parameter_dt <- readRDS("~/Research-Belief_updating_oneshot/parameter_dt.rds") 
-parameter_dt_s <- readRDS("~/Research-Belief_updating_oneshot/parameter_dt_s.rds") 
+source("R/models.R")
+parameter_dt <- readRDS("data/parameter_dt.rds") 
+parameter_dt_s <- readRDS("data/parameter_dt_s.rds") 
 
 setDT(parameter_dt)
 
@@ -64,5 +64,5 @@ tidy_and_save <- function(pv_full, file) {
   saveRDS(out, file)
 }
 
-tidy_and_save(pv_full,   "prediction_dt.rds")
-tidy_and_save(pv_full_s, "prediction_dt_s.rds")
+tidy_and_save(pv_full,   "data/prediction_dt.rds")
+tidy_and_save(pv_full_s, "data/prediction_dt_s.rds")

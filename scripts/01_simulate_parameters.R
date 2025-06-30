@@ -39,10 +39,16 @@ tt_s<- s %>% filter(subject_s == "1_1")
 ## 1. Helper functions -------------------------------------------------------
 
 # Monte Carlo sampler: return relative frequency of success in N Bernoulli trials
-simulate_relative <- function(p, N) {
-  if (N <= 0) return(NA_real_)
-  mean(rbinom(N, 1, p))
+simulate_and_mutate <- function(df, num_samples) {
+  df <- df %>%
+    mutate(relative_frequency = numeric(n()))
+  for (i in seq_along(df$true_posterior)) {
+    p <- df$true_posterior[i]
+    df$relative_frequency[i] <- mean(rbinom(num_samples, 1, p))
+  }
+  return(df)
 }
+
 
 # Draw a Dirichlet-distributed probability vector of length k
 dirichlet_weights <- function(K) as.numeric(MCMCpack::rdirichlet(1, rep(1, K)))
@@ -61,8 +67,10 @@ generate_one_iteration <- function(iter_id, tt) {
   v <- rexp(9, rate = rate_v)
   N <- rgeom(9, prob = rate_N) + 1
   
-  # For each N, simulate the observed relative frequency for every trial
-  rf_list <- lapply(N, function(Ni) simulate_relative(tt$true_posterior, Ni))
+  # For each trial, simulate the observed relative frequency for every trial
+  rf_list <- lapply(seq_along(N), function(j) {
+    simulate_and_mutate(tt, N[j])$relative_frequency
+  })
   
   # Random noise (12 scalars between 0.05 and 0.95)
   r_vals <- runif(12, 0.05, 0.95)
@@ -116,7 +124,7 @@ generate_one_iteration <- function(iter_id, tt) {
   trial_dt[, u := u]
   
   # Add relative frequency columns (each of length = n_trials)
-  for (j in 1:9) {
+  for (j in seq_along(rf_list)) {
     trial_dt[[paste0("relative_frequency", j)]] <- rf_list[[j]]
   }
   
@@ -124,9 +132,8 @@ generate_one_iteration <- function(iter_id, tt) {
 }
 
 ## 3. Wrapper to run multiple iterations -------------------------------------
-
 # Run Monte Carlo sampling for all trials and return combined parameter table
-run_simulations <- function(tt, n_iter = 10000, seed = 123) {
+run_simulations <- function(tt, n_iter = 50, seed = 123) {
   stopifnot(all(c("BR", "HR", "FAR", "true_posterior") %in% names(tt)))
   set.seed(seed)
   
@@ -142,7 +149,7 @@ run_simulations <- function(tt, n_iter = 10000, seed = 123) {
 
 
 ## 4. Run simulation -----------------------------------------------
-parameter_dt <- run_simulations(tt, n_iter = 10000)
+parameter_dt <- run_simulations(tt, n_iter = 10)
 parameter_dt_s <- run_simulations(tt_s, n_iter = 10000)
 saveRDS(parameter_dt, "data/parameter_dt.rds")
 saveRDS(parameter_dt_s, "data/parameter_dt_s.rds")

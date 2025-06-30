@@ -18,9 +18,9 @@ pacman::p_load(
   # File I/O
   readxl,
   # Statistics
-  afex, emmeans, abc
+  afex, emmeans, abc,readr
 )
-
+pacman::p_load(data.table, dplyr, tidyr, magrittr, MCMCpack, purrr,readxl,parallel)
 # ----- Load Custom Metric Functions -----
 source("R/metrics.R")
 
@@ -33,7 +33,7 @@ dt_s<-as.data.table(readRDS("data/prediction_dt_s.rds"))
 # Accuracy = % of predictions within 3% of the true posterior
 A_Simulate_s <- compute_CLC_summary(dt_s)
 # ----- Plot Accuracy Bar Chart -----
-ggplot(A_Simulate_s, aes(x = reorder(model, Accuracy), y = Accuracy)) +
+p1<-ggplot(A_Simulate_s, aes(x = reorder(model, Accuracy), y = Accuracy)) +
   geom_bar(stat = "identity", fill = "#4B6C8A", width = 0.6) +
   coord_flip() +
   theme_classic(base_size = 12) +
@@ -48,7 +48,8 @@ ggplot(A_Simulate_s, aes(x = reorder(model, Accuracy), y = Accuracy)) +
     x = "Model",
     y = "Proportion Accurate (< 3%)"
   )
-
+# ========== Figure 5: Model Comparison (accuracy) for Stengard ==========
+ggsave("fig/Figure_5.png", p1, width = 10, height = 10, dpi = 600, units = "in")
 # ----- Compute All Summary Statistics for Simulated Data -----
 # EMP, Ad, PD metrics (by reference heuristics)
 M_Simulate_s <- compute_all_metrics(dt_s)
@@ -104,13 +105,11 @@ final_Human_s <- M_Human_s %>%
 saveRDS(final_Human_s, "data/Human_Summary_dts.rds")
 saveRDS(final_Simulate_s, "data/Simulate_Summary_dts.rds")
 
-
 # ===== Experiment =====
 # ----- Compute Accuracy (CLC) -----
-# Accuracy = % of predictions within 3% of the true posterior
 A_Simulate <- compute_CLC_summary(dt)
-# ----- Plot Accuracy Bar Chart -----
-ggplot(A_Simulate, aes(x = reorder(model, Accuracy), y = Accuracy)) +
+# ========== Figure 7: Model Comparison (Accuracy) for Experiment ==========
+p2<-ggplot(A_Simulate, aes(x = reorder(model, Accuracy), y = Accuracy)) +
   geom_bar(stat = "identity", fill = "#4B6C8A", width = 0.6) +
   coord_flip() +
   theme_classic(base_size = 12) +
@@ -125,7 +124,7 @@ ggplot(A_Simulate, aes(x = reorder(model, Accuracy), y = Accuracy)) +
     x = "Model",
     y = "Proportion Accurate (< 3%)"
   )
-
+ggsave("fig/Figure_7.png", p2, width = 10, height = 10, dpi = 600, units = "in")
 # ----- Compute All Summary Statistics for Simulated Data -----
 # EMP, Ad, PD metrics (by reference heuristics)
 M_Simulate <- compute_all_metrics(dt)

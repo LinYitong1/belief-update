@@ -202,15 +202,14 @@ lexicographic_model_NH <- function(BR, HR, FAR, delta_HR, delta_BR, delta_FAR, r
 # Simulation helper
 simulate_and_mutate <- function(df, num_samples) {
   df <- df %>%
-    mutate(relative_frequency = numeric(n()))  
+    mutate(relative_frequency = numeric(n()))
   for (i in seq_along(df$true_posterior)) {
-    true_posterior <- df$true_posterior[i]
-    samples <- rbinom(num_samples, 1, true_posterior)
-    count_ones <- sum(samples == 1)
-    df$relative_frequency[i] <- count_ones / num_samples
+    p <- df$true_posterior[i]
+    df$relative_frequency[i] <- mean(rbinom(num_samples, 1, p))
   }
   return(df)
 }
+
 
 # Integrated BS functions
 In_BS_H <- function(N, v, relative_frequency) {
