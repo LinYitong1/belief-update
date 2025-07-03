@@ -15,7 +15,8 @@ suppressPackageStartupMessages({
   library(purrr)       # Functional programming tools
   library(abc)         # Approximate Bayesian Computation
   library(tidyr)       # Tidy data utilities
-  library(ggplot2)     # Data visualization
+  library(ggplot2)  
+  library(patchwork)# Data visualization
 })
 
 # -----------------------------------------------------------------------------
@@ -284,7 +285,7 @@ plot_human_by_format <- function(df_raw, formats, vlines_all, plot_fn) {
     plt
   })
   names(plots) <- formats
-  invisible(plots)
+  plots
 }
 
 # -----------------------------------------------------------------------------
@@ -384,6 +385,177 @@ run_analysis_pipeline <- function(
     )
   
   message("--- Analysis for ", dataset_name, " complete. ---")
-  list(plot = final_plot, posteriors = abc_out$post_draws, human_summary = final_human)
+  list(plot = final_plot, 
+       posteriors_parameter = abc_out$post_draws, 
+       posteriors_prediction = ppc_all,
+       human_summary = final_human)
 }
+
+# -----------------------------------------------------------------------------
+# 9. Individual‑level Posterior vs. Observed Diagnostics
+# -----------------------------------------------------------------------------
+
+# The following helpers compute summary statistics per posterior draw, merge
+# them with the observed participant‑level statistics, and visualise the extent
+# to which the model reproduces individual variability.
+
+# 9.1 Metric aggregation + regression slopes
+# ── Summarise posterior metrics, regression slopes, and (optional) variance ──
+# ── Summarise posterior metrics, slopes, and (optional) posterior variance ──
+summarise_posterior <- function(
+    post_pred,
+    column          = "prediction",
+    group_vars      = c("sample", "format"),
+    predictors      = c("BR", "HR", "FAR"),
+    calculate_variance = FALSE,
+    variance_column    = column,
+    var_group_vars     = c("sample", "format", "BR", "HR", "FAR"),
+    var_summary_vars   = c("sample", "format")
+) {
+  
+  # 1. metrics + slopes --------------------------------------------------------
+  dt <- data.table::as.data.table(post_pred)
+  
+  metrics <- compute_all_metrics(
+    df         = dt,
+    column     = column,
+    group_vars = group_vars
+  )
+  
+  slopes  <- compute_SI_by(
+    dt         = dt,
+    group_vars = group_vars,
+    predictors = predictors,
+    column     = column
+  )
+  
+  final_tbl <- dplyr::left_join(metrics, slopes, by = group_vars)
+  
+  # 2. posterior variance (on demand) -----------------------------------------
+  if (calculate_variance) {
+    
+    var_tbl <- compute_variance_summary(
+      post_pred,
+      column       = variance_column,
+      group_vars   = var_group_vars,
+      summary_vars = var_summary_vars
+    )
+    
+    join_keys <- intersect(names(final_tbl), names(var_tbl))
+    final_tbl <- dplyr::left_join(final_tbl, var_tbl, by = join_keys)
+  }
+  
+  final_tbl
+}
+
+
+# 9.2 Prepare long‑format table (Model + Observed)
+prepare_stats_long <- function(
+    posterior_all,
+    observed_df,
+    human_dt,
+    group_vars = c("sample", "format"),
+    id_var = NULL) {
+  
+  id_var <- id_var %||%
+    (c("subject_s", "subject") %>% intersect(names(observed_df)) %>% first())
+  if (is.na(id_var)) stop("ID column not found.", call. = FALSE)
+  
+  format_tbl <- dplyr::distinct(human_dt, .data[[id_var]], format)
+  
+  indiv_obs <- observed_df |>
+    dplyr::left_join(format_tbl, by = id_var) |>
+    dplyr::select(-dplyr::all_of(id_var))
+  
+  dplyr::bind_rows(
+    dplyr::mutate(indiv_obs,      type = "Observed"),
+    dplyr::mutate(posterior_all,  type = "Model")
+  ) |>
+    tidyr::pivot_longer(-c(type, dplyr::all_of(group_vars)),
+                        names_to = "stat", values_to = "value") |>
+    dplyr::select(-dplyr::all_of(group_vars))
+}
+
+
+# 9.3 Histogram‑overlap statistic
+compute_hist_overlap <- function(x, y, bins = 30) {
+  x <- x[is.finite(x)]
+  y <- y[is.finite(y)]
+  if (length(x) == 0 || length(y) == 0) return(NA_real_)
+  rng <- range(c(x, y), finite = TRUE)
+  if (diff(rng) == 0) return(1)         
+  
+  breaks <- seq(rng[1], rng[2], length.out = bins + 1)
+  
+  hx <- hist(x, breaks = breaks, plot = FALSE, right = FALSE)
+  hy <- hist(y, breaks = breaks, plot = FALSE, right = FALSE)
+  
+  px <- hx$counts / sum(hx$counts)     
+  py <- hy$counts / sum(hy$counts)
+  
+  sum(pmin(px, py))
+}
+
+
+
+get_overlap_tbl <- function(stats_long, bins = 30) {
+  stats_long |>
+    dplyr::filter(!grepl("subject_s", stat)) |>
+    dplyr::group_by(stat) |>
+    tidyr::nest() |>
+    dplyr::mutate(
+      overlap = purrr::map_dbl(data, \(df) {
+        x <- df |> dplyr::filter(type == "Model")    |> dplyr::pull(value)
+        y <- df |> dplyr::filter(type == "Observed") |> dplyr::pull(value)
+        compute_hist_overlap(x, y, bins = bins)
+      })
+    ) |>
+    dplyr::select(stat, overlap) |>
+    dplyr::arrange(overlap) |>
+    data.table::as.data.table()
+}
+
+# -----------------------------------------------------------------------------
+# 10. Visualisation helpers for individual‑level diagnostics
+# -----------------------------------------------------------------------------
+
+plot_hist_overlap <- function(overlap_tbl) {
+  ggplot2::ggplot(
+    overlap_tbl,
+    ggplot2::aes(x = reorder(stat, overlap), y = overlap)
+  ) +
+    ggplot2::geom_segment(
+      ggplot2::aes(xend = stat, y = 0, yend = overlap),
+      colour = "grey60"
+    ) +
+    ggplot2::geom_point(size = 2, colour = "firebrick") +
+    ggplot2::coord_flip() +
+    ggplot2::labs(y = "Histogram overlap", x = NULL) +
+    ggplot2::theme_bw(base_size = 7)
+}
+
+plot_density_stats <- function(
+    stats_long,
+    dens_ncol   = 4) {
+  
+  ggplot2::ggplot(
+    stats_long,
+    ggplot2::aes(value, fill = type, colour = type)
+  ) +
+    ggplot2::geom_density(alpha = .3, adjust = 1.4) +
+    ggplot2::geom_rug(
+      data   = subset(stats_long, grepl("intercept_", stat) & abs(value) > 30),
+      sides  = "b", colour = "grey50", alpha = .5
+    ) +
+    ggplot2::facet_wrap(~ factor(stat), scales = "free", ncol = dens_ncol) +
+    ggplot2::scale_fill_manual(values = c(Model = "#1f78b4", Observed = "#fb9a99")) +
+    ggplot2::scale_colour_manual(values = c(Model = "#1f78b4", Observed = "#fb9a99")) +
+    ggplot2::theme_minimal(base_size = 8) +
+    ggplot2::labs(
+      x       = NULL,
+      y       = "Density",
+      caption = "Intercept panels trimmed to |x| < 30; dashed rug marks extreme values"
+    )
+}
+
 

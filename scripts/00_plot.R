@@ -170,7 +170,12 @@ plot_mean_vs_tp(
 # ========== Figure 10: Model Accuracy Comparison for Experiment Data in 03  ==========
 # ========== Figure 11: Model Fitting Comparison for Experiment Data in 04  ==========
 
-# ========== Figure 12: Posterior Prediction Check for Stengard Data in 05  ==========
-# ========== Figure 13: Posterior Prediction Check for Experiment Data in 04  ==========
+# ========== Figure 12: Posterior Prediction Distribution for Stengard Data in 05  ==========
+# ========== Figure 13: Posterior Prediction Distribution for Experiment Data in 05  ==========
 
+# ========== Figure 14: Posterior summary stats Distribution for Stengard Data in 05  ==========
+# ========== Figure 15: Posterior summary stats Distribution for Experiment Data in 05  ==========
+
+# ========== Figure 16: Posterior summary stats overlap for Stengard Data in 05  ==========
+# ========== Figure 17: Posterior summary stats overlap for Experiment Data in 05  ==========
 # ======================== End of Script ============================

@@ -57,6 +57,33 @@ stengard_results <- run_analysis_pipeline(
 )
 ggsave(file.path(plot_dir, "Figure_12.png"), stengard_results$plot,
        width = plot_width, height = plot_height, dpi = default_dpi)
+
+post_s<-as.data.table(stengard_results$posteriors_prediction)
+
+posterior_s <- summarise_posterior(
+  post_pred= post_s,
+  calculate_variance = FALSE)  
+
+stats_long_s <- prepare_stats_long(
+  posterior_all =  posterior_s,
+  observed_df   = observed_s,
+  human_dt      = human_dt_s,
+  id_var        = "subject_s")  
+
+density_stat_s <- plot_density_stats(
+  stats_long_s,
+  dens_ncol   = 4)
+ggsave(file.path(plot_dir, "Figure_14.png"), density_stat_s,
+       width = plot_width, height = plot_height, dpi = default_dpi)
+
+overlap_tbl_s<-get_overlap_tbl(stats_long_s, bins = 30)
+
+hist_overlap_s<-plot_hist_overlap(overlap_tbl_s)
+ggsave(file.path(plot_dir, "Figure_16.png"), hist_overlap_s,
+       width = plot_width, height = plot_height, dpi = default_dpi)
+
+
+
 ###############################################################################
 #Experiment                                                           #
 ###############################################################################
@@ -72,6 +99,30 @@ experimental_results <- run_analysis_pipeline(
                               FAR = c(0.42,0.42, 0.11)),
   calculate_variance = TRUE,
   abc_tol =0.01)
-  ggsave(file.path(plot_dir, "Figure_13.png"), experimental_results $plot,
+ggsave(file.path(plot_dir, "Figure_13.png"), experimental_results $plot,
        width = plot_width, height = plot_height, dpi = default_dpi)
 
+post_exp<-as.data.table(experimental_results$posteriors_prediction)
+
+ posterior_exp <- summarise_posterior(
+   post_pred= post_exp,
+   calculate_variance = TRUE)  
+ 
+ stats_long_exp <- prepare_stats_long(
+   posterior_all =  posterior_exp,
+   observed_df   = observed,
+   human_dt      = human_dt,
+   id_var        = "subject")  
+ 
+ density_stat_exp<-plot_density_stats(
+   stats_long_exp ,
+   dens_ncol   = 4)
+ ggsave(file.path(plot_dir, "Figure_15.png"), density_stat_exp,
+        width = plot_width, height = plot_height, dpi = default_dpi)
+ 
+ overlap_tbl_exp<-get_overlap_tbl( stats_long_exp, bins =30)
+ 
+ hist_overlap_exp<-plot_hist_overlap(overlap_tbl_exp)
+ ggsave(file.path(plot_dir, "Figure_17.png"),  hist_overlap_exp,
+        width = plot_width, height = plot_height, dpi = default_dpi)
+ 

@@ -88,4 +88,3 @@ compute_variance_summary <- function(dt, column = "predict",
   var_dt <- dt[, .(variance = var(get(column), na.rm = TRUE)), by = group_vars]
   var_dt[, .(mean_variance = mean(variance, na.rm = TRUE)), by = summary_vars]
 }
-
