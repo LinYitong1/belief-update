@@ -72,10 +72,6 @@ experimental_results <- run_analysis_pipeline(
                               FAR = c(0.42,0.42, 0.11)),
   calculate_variance = TRUE,
   abc_tol =0.01)
-ggsave(file.path(plot_dir, "Figure_13.png"), experimental_results $plot,
+  ggsave(file.path(plot_dir, "Figure_13.png"), experimental_results $plot,
        width = plot_width, height = plot_height, dpi = default_dpi)
-
-
-
-
 

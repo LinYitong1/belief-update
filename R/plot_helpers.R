@@ -193,7 +193,7 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
     human %>% filter(format == "probability"),
     aes(x = response_pct)
   ) +
-    geom_histogram(aes(y = ..density..), binwidth = 3, fill = "#5b5e6e") +
+    geom_histogram(aes(y = after_stat(density)), binwidth = 3, fill = "#5b5e6e") +
     geom_vline(
       data      = vlines,
       aes(xintercept = value, colour = heuristic),
@@ -218,7 +218,7 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
     human %>% filter(format == "frequency"),
     aes(x = response_pct)
   ) +
-    geom_histogram(aes(y = ..density..), binwidth = 3, fill = "#5b5e6e") +
+    geom_histogram(aes(y = after_stat(density)), binwidth = 3, fill = "#5b5e6e") +
     geom_vline(
       data      = vlines,
       aes(xintercept = value, colour = heuristic),
@@ -242,7 +242,7 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
     model_df %>% filter(model_type == "Bayesian Sampler"),
     aes(x = predict_pct, fill = model)
   ) +
-    geom_histogram(aes(y = ..density..), binwidth = 2,
+    geom_histogram(aes(y = after_stat(density)), binwidth = 2,
                    alpha = 0.4, colour = NA, position = "identity") +
     labs(title = "Bayesian Sampler", x = "Predicted probability (%)", y = "Density") +
     coord_cartesian(xlim = c(0, 100), ylim = c(0, 0.13)) +

@@ -231,7 +231,7 @@ add_okabe_color <- function() {
 #' @param ylab Y-axis label.
 plot_distribution <- function(data, vlines, xlab, ylab) {
   ggplot(data, aes(x = response_pct)) +
-    geom_histogram(aes(y = ..density..), binwidth = 3, fill = "#5b5e6e") +
+    geom_histogram( aes(y = after_stat(density)), binwidth = 3, fill = "#5b5e6e") +
     geom_vline(data = vlines, aes(xintercept = value, colour = heuristic),
                linetype = "dashed", size = .6) +
     add_okabe_color() +
