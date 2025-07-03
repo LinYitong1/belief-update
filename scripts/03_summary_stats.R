@@ -16,9 +16,9 @@ pacman::p_load(
   # Parallelism
   foreach, doParallel,
   # File I/O
-  readxl,
+  readxl,purrr,MCMCpack,
   # Statistics
-  afex, emmeans, abc,readr
+  afex, emmeans, abc,readr,parallel
 )
 pacman::p_load(data.table, dplyr, tidyr, magrittr, MCMCpack, purrr,readxl,parallel)
 # ----- Load Custom Metric Functions -----
@@ -57,13 +57,9 @@ M_Simulate_s <- compute_all_metrics(dt_s)
 # Linear regression (slope, intercept) by BR, HR, FAR
 R_Simulate_s <- compute_SI_by(dt_s)
 
-# Variance of predictions across trials
-V_Simulate_s <- compute_variance_summary(dt_s)
-
 # ----- Merge All Metrics into One Data Table -----
 final_Simulate_s <- M_Simulate_s %>%
-  left_join(R_Simulate_s, by = c("model", "Iteration")) %>%
-  left_join(V_Simulate_s, by = c("model", "Iteration"))
+  left_join(R_Simulate_s, by = c("model", "Iteration")) 
 # ===== HUMAN DATA ANALYSIS =====
 
 # ----- Load Raw Human Judgment Data -----
@@ -124,7 +120,7 @@ p2<-ggplot(A_Simulate, aes(x = reorder(model, Accuracy), y = Accuracy)) +
     x = "Model",
     y = "Proportion Accurate (< 3%)"
   )
-ggsave("fig/Figure_7.png", p2, width = 10, height = 10, dpi = 600, units = "in")
+ggsave("fig/Figure_10.png", p2, width = 10, height = 10, dpi = 600, units = "in")
 # ----- Compute All Summary Statistics for Simulated Data -----
 # EMP, Ad, PD metrics (by reference heuristics)
 M_Simulate <- compute_all_metrics(dt)

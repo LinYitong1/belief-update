@@ -161,20 +161,25 @@ predict_bs_models <- function(param_df) {
 
 # ==================== Plotting Utilities =======================
 
-# Okabe-Ito color palette (colorblind-friendly)
+# Okabe–Ito colorblind-friendly palette
 okabe_ito <- c(
-  BO    = "#E69F00",
-  FC    = "#56B4E9",
-  JO    = "#009E73",
-  LS    = "#F0E442",
-  REP   = "#0072B2",
-  `50%` = "#CC79A7",
-  Bayes = "#D55E00"
+  BO    = "#E69F00", FC   = "#56B4E9", JO    = "#009E73",
+  LS    = "#F0E442", REP  = "#0072B2", `50%` = "#CC79A7", Bayes = "#D55E00"
 )
 
-# ggplot helper for custom color palette
+# Human-readable heuristic labels
+heur_labels <- c(
+  BO    = "BO", FC = "FC", JO = "JO",
+  LS    = "LS", REP = "REP", `50%` = "50 %", Bayes = "Bayes"
+)
+
+# ggplot helper for custom color palette with legend
 add_okabe_color <- function() {
-  scale_color_manual(values = okabe_ito)
+  scale_color_manual(
+    name   = "Heuristic",
+    values = okabe_ito,
+    labels = heur_labels
+  )
 }
 
 # Function: Plot three-panel comparison of human responses vs. Bayesian Sampler
@@ -184,43 +189,77 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
   model_df <- pv_all %>% filter(task_id == task_label)
   
   # Panel 1: Probability format
-  p_hum_prob <- ggplot(human %>% filter(format == "probability"),
-                       aes(x = response_pct)) +
+  p_hum_prob <- ggplot(
+    human %>% filter(format == "probability"),
+    aes(x = response_pct)
+  ) +
     geom_histogram(aes(y = ..density..), binwidth = 3, fill = "#5b5e6e") +
-    geom_vline(data = vlines, aes(xintercept = value, colour = heuristic),
-               linetype = "dashed", size = .6, show.legend = include_legend) +
-    labs(title = paste0(task_label, "\nFormat: Probability"),
-         x = "Estimated probability (%)", y = "Density") +
-    coord_cartesian(xlim = c(0,100), ylim = c(0,0.13)) +
-    scale_colour_manual(values = okabe_ito, labels = heuristics, name = NULL) +
-    theme_minimal(base_size = 7) +
-    theme(legend.position = if(include_legend) "bottom" else "none")
+    geom_vline(
+      data      = vlines,
+      aes(xintercept = value, colour = heuristic),
+      linetype  = "dashed", size = 0.6,
+      show.legend = include_legend
+    ) +
+    labs(
+      title = paste0(task_label, "\nFormat: Probability"),
+      x = "Estimated probability (%)", y = "Density"
+    ) +
+    coord_cartesian(xlim = c(0, 100), ylim = c(0, 0.13)) +
+    add_okabe_color() +
+    theme_bw(base_size = 7) +
+    theme(
+      legend.position = if(include_legend) "bottom" else "none",
+      panel.grid.major.y = element_line(size = 0.3, colour = "grey85"),
+      panel.grid.minor   = element_blank()
+    )
   
   # Panel 2: Frequency format
-  p_hum_freq <- ggplot(human %>% filter(format == "frequency"),
-                       aes(x = response_pct)) +
+  p_hum_freq <- ggplot(
+    human %>% filter(format == "frequency"),
+    aes(x = response_pct)
+  ) +
     geom_histogram(aes(y = ..density..), binwidth = 3, fill = "#5b5e6e") +
-    geom_vline(data = vlines, aes(xintercept = value, colour = heuristic),
-               linetype = "dashed", size = .6) +
-    labs(title = "Format: Frequency",
-         x = "Estimated probability (%)", y = "Density") +
-    coord_cartesian(xlim = c(0,100), ylim = c(0,0.13)) +
-    scale_colour_manual(values = okabe_ito, labels = heuristics, name = NULL) +
-    theme_minimal(base_size = 7) +
-    theme(legend.position = "none")
+    geom_vline(
+      data      = vlines,
+      aes(xintercept = value, colour = heuristic),
+      linetype  = "dashed", size = 0.6
+    ) +
+    labs(
+      title = "Format: Frequency",
+      x = "Estimated probability (%)", y = "Density"
+    ) +
+    coord_cartesian(xlim = c(0, 100), ylim = c(0, 0.13)) +
+    add_okabe_color() +
+    theme_bw(base_size = 7) +
+    theme(
+      legend.position = "none",
+      panel.grid.major.y = element_line(size = 0.3, colour = "grey85"),
+      panel.grid.minor   = element_blank()
+    )
   
   # Panel 3: Model predictions
-  p_mod_bs <- ggplot(model_df %>% filter(model_type == "Bayesian Sampler"),
-                     aes(x = predict_pct, fill = model)) +
+  p_mod_bs <- ggplot(
+    model_df %>% filter(model_type == "Bayesian Sampler"),
+    aes(x = predict_pct, fill = model)
+  ) +
     geom_histogram(aes(y = ..density..), binwidth = 2,
-                   alpha = .4, colour = NA, position = "identity") +
+                   alpha = 0.4, colour = NA, position = "identity") +
     labs(title = "Bayesian Sampler", x = "Predicted probability (%)", y = "Density") +
-    coord_cartesian(xlim = c(0,100), ylim = c(0,0.13)) +
-    scale_fill_manual(values = c("Bayesian Sampler" = "#E41A1C",
-                                 "Asymmetric Bayesian Sampler" = "#377EB8")) +
-    theme_minimal(base_size = 7) +
-    theme(legend.position = if(include_legend) "bottom" else "none")
+    coord_cartesian(xlim = c(0, 100), ylim = c(0, 0.13)) +
+    scale_fill_manual(
+      values = c(
+        "Bayesian Sampler"          = "#E41A1C",
+        "Asymmetric Bayesian Sampler" = "#377EB8"
+      )
+    ) +
+    theme_bw(base_size = 7) +
+    theme(
+      legend.position = if(include_legend) "bottom" else "none",
+      panel.grid.major.y = element_line(size = 0.3, colour = "grey85"),
+      panel.grid.minor   = element_blank()
+    )
   
+  # Combine panels vertically
   (p_hum_prob / p_hum_freq / p_mod_bs) +
     patchwork::plot_layout(ncol = 1, heights = c(3, 3, 3))
 }

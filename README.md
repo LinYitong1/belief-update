@@ -22,6 +22,7 @@ Run each script in `scripts/` in order:
 2. `02_generate_predictions.R`
 3. `03_summary_stats.R`
 4. `04_abcrf_indiviudal_inference.R`
+5. `05_posterior_check.R`
 
 All Figure. `00_plot.R`
 All Table.  `00_stats_table.R`
