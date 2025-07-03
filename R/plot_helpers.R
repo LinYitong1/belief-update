@@ -182,6 +182,7 @@ add_okabe_color <- function() {
   )
 }
 
+
 # Function: Plot three-panel comparison of human responses vs. Bayesian Sampler
 plot_task_panel <- function(task_label, include_legend = FALSE) {
   human    <- S_clean %>% filter(task_id == task_label)
@@ -201,12 +202,12 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
       show.legend = include_legend
     ) +
     labs(
-      title = paste0(task_label, "\nFormat: Probability"),
-      x = "Estimated probability (%)", y = "Density"
-    ) +
+      title = paste0(task_label),
+      x = "Human Estimates (%)-Probability", y = "Density"
+    )+
     coord_cartesian(xlim = c(0, 100), ylim = c(0, 0.13)) +
     add_okabe_color() +
-    theme_bw(base_size = 7) +
+    theme_bw(base_size = 5) +
     theme(
       legend.position = if(include_legend) "bottom" else "none",
       panel.grid.major.y = element_line(size = 0.3, colour = "grey85"),
@@ -225,12 +226,11 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
       linetype  = "dashed", size = 0.6
     ) +
     labs(
-      title = "Format: Frequency",
-      x = "Estimated probability (%)", y = "Density"
+      x = "Human Estimates (%)-Frequency", y = "Density"
     ) +
     coord_cartesian(xlim = c(0, 100), ylim = c(0, 0.13)) +
     add_okabe_color() +
-    theme_bw(base_size = 7) +
+    theme_bw(base_size = 5) +
     theme(
       legend.position = "none",
       panel.grid.major.y = element_line(size = 0.3, colour = "grey85"),
@@ -242,9 +242,9 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
     model_df %>% filter(model_type == "Bayesian Sampler"),
     aes(x = predict_pct, fill = model)
   ) +
-    geom_histogram(aes(y = after_stat(density)), binwidth = 2,
+    geom_histogram(aes(y = after_stat(density)), binwidth = 3,
                    alpha = 0.4, colour = NA, position = "identity") +
-    labs(title = "Bayesian Sampler", x = "Predicted probability (%)", y = "Density") +
+    labs(x = " Model Prediction (%)", y = "Density") +
     coord_cartesian(xlim = c(0, 100), ylim = c(0, 0.13)) +
     scale_fill_manual(
       values = c(
@@ -252,7 +252,7 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
         "Asymmetric Bayesian Sampler" = "#377EB8"
       )
     ) +
-    theme_bw(base_size = 7) +
+    theme_bw(base_size = 5) +
     theme(
       legend.position = if(include_legend) "bottom" else "none",
       panel.grid.major.y = element_line(size = 0.3, colour = "grey85"),

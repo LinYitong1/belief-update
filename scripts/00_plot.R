@@ -96,11 +96,11 @@ p_combined <- wrap_plots(p_panels) +
   plot_layout(ncol = 3, guides = "collect") &
   theme(
     legend.position = "bottom",
-    plot.title      = element_text(size = 6.5, hjust = 0.5)
+    plot.title      = element_text(size = 5, hjust = 0.5)
   )
 
-ggsave(file.path(plot_dir, "Figure_2.png"),
-       p_combined, width = 12, height = 4.5, dpi = default_dpi)
+ggsave(file.path(plot_dir, "Figure_2.png"),p_combined,
+       width = plot_width, height = plot_height, dpi = default_dpi)
 
 # ========== Figure 3: Mean Response vs True Posterior (Stengård) ==========
 plot_mean_vs_tp(
