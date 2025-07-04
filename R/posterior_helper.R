@@ -531,7 +531,11 @@ plot_hist_overlap <- function(overlap_tbl) {
     ggplot2::geom_point(size = 2, colour = "firebrick") +
     ggplot2::coord_flip() +
     ggplot2::labs(y = "Histogram overlap", x = NULL) +
-    ggplot2::theme_bw(base_size = 7)
+    ggplot2::theme_bw(base_size = 7)+
+    theme(
+      panel.grid.major.y = element_blank(), 
+      panel.grid.minor.y = element_blank()
+    )
 }
 
 plot_density_stats <- function(
@@ -557,5 +561,57 @@ plot_density_stats <- function(
       caption = "Intercept panels trimmed to |x| < 30; dashed rug marks extreme values"
     )
 }
+# -----------------------------------------------------------------------------
+# 11. Posterior predictive checks
+# -----------------------------------------------------------------------------
 
+calculate_ppp <- function(df, alpha = 0.05) {
+  df %>%
+    group_by(stat) %>%
+    summarise(
+      T_obs = value[type == "Observed"][1],
+      T_rep = list(value[type == "Model"]),
+      p_lower = mean(T_rep[[1]] <= T_obs),
+      p_upper = mean(T_rep[[1]] >= T_obs),
+      .groups = "drop" 
+    ) %>%
+    mutate(
+      ppp = 2 * pmin(p_lower, p_upper),
+      bad_fit = ppp < alpha,
+      direction = if_else(p_lower < p_upper, "over", "under") 
+    )
+}
+
+
+plot_ppp_summary <-function(ppp_df, alpha_threshold = 0.05) {
+  plot_data <- ppp_df %>%
+    arrange(ppp) %>%
+    mutate(stat = factor(stat, levels = stat))
+  ggplot(plot_data, aes(x = stat, y = ppp, colour = direction)) +
+    geom_segment(
+      aes(x = stat, xend = stat, y = 0, yend = ppp),
+      linewidth = 0.8 
+    ) +
+
+    geom_point(size = 2) +
+    geom_hline(
+      yintercept = alpha_threshold, 
+      linetype = "dashed", 
+      color = "black"
+    ) +
+    scale_colour_manual(
+      name = "Bias",
+      values = c("under" = "#d73027", "over" = "#4575b4")
+    ) +
+    coord_flip() +
+    labs(
+      y = "Posterior-predictive p-value",
+      x = NULL
+    ) +
+    theme_bw(base_size = 7) +
+    theme(
+      panel.grid.major.y = element_blank(), 
+      panel.grid.minor.y = element_blank()
+    )
+}
 
