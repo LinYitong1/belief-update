@@ -126,12 +126,12 @@ post_exp<-as.data.table(experimental_results$posteriors_prediction)
  overlap_tbl_exp<-get_overlap_tbl( stats_long_exp, bins =30)
  
  hist_overlap_exp<-plot_hist_overlap(overlap_tbl_exp)
- ggsave(file.path(plot_dir, "Figure_17.png"),  hist_overlap_exp,
+ ggsave(file.path(plot_dir, "Figure_18.png"),  hist_overlap_exp,
         width = plot_width, height = plot_height, dpi = default_dpi)
  
  ppp_results_exp <- calculate_ppp(stats_long_exp, alpha = 0.05)
  ppp_plot_exp <- plot_ppp_summary(ppp_results_exp, alpha_threshold = 0.05)
  
- ggsave(file.path(plot_dir, "Figure_18.png"),   ppp_plot_exp ,
+ ggsave(file.path(plot_dir, "Figure_19.png"),   ppp_plot_exp ,
         width = plot_width, height = plot_height, dpi = default_dpi)
  
