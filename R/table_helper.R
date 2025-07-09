@@ -32,7 +32,7 @@ load_clean_data <- function(path, type = c("experiment", "stengard", "sirota")) 
         BR             = br,
         HR             = hr,
         FAR            = far,
-        subject_s      = paste0(subject, "_", ifelse(format == "frequency", 1, 2))
+        subject = paste0(subject, "_", ifelse(format == "frequency", 1, 2)),
       )
   } else if (type == "sirota") {
     readr::read_csv(path) %>%
@@ -125,17 +125,20 @@ calculate_fractional_matches <- function(x) {
   round(match_proportions, 2)
 }
 
+
+
 exact_match_table <- function(stengard, sirota, out_path = NULL, caption = NULL) {
   stan <- stengard 
   stengard_matches <- rbind(
     calculate_fractional_matches(stan %>% filter(format == "probability")),
     calculate_fractional_matches(stan %>% filter(format == "frequency"))
   )
-  si_matches <- rbind(
-    calculate_fractional_matches(sirota %>% filter(format == "Probability")),
-    calculate_fractional_matches(sirota %>% filter(format == "Frequency"))
-  )
-  result <- rbind(stengard_matches, si_matches) %>% as.data.frame()
+#  si_matches <- rbind(
+#    calculate_fractional_matches(sirota %>% filter(format == "Probability")),
+#    calculate_fractional_matches(sirota %>% filter(format == "Frequency"))
+#  )
+#  result <- rbind(stengard_matches, si_matches) %>% as.data.frame()
+  result <- stengard_matches %>% as.data.frame()
   result <- result %>%
     mutate(Heuristic = BO + REP + FC + JO + LS + `X50.`)
   result <- result[, c("BO", "REP", "FC", "JO", "LS", "X50.", "Heuristic", "Bayes")]
@@ -147,4 +150,19 @@ exact_match_table <- function(stengard, sirota, out_path = NULL, caption = NULL)
       save_kable(out_path)
   }
   result
+}
+
+# Function:Filter out responses that match any heuristic
+filter_nonmatches <- function(df, tol = 0.03) {
+  preds <- data.frame(
+    Bayes = round(df$true_posterior, 2),
+    REP   = df$HR,
+    BO    = df$BR,
+    FC    = 1 - df$FAR,
+    JO    = round(df$BR * df$HR, 2),
+    LS    = round(df$HR - df$FAR, 2),
+    `50%` = 0.5
+  )
+  diffs <- abs(preds - df$response)
+  df[rowSums(diffs <= tol) == 0, ]
 }

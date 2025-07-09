@@ -174,7 +174,14 @@ V_Human <- compute_variance_summary(
   group_vars = c("subject", "BR", "HR", "FAR"),
   summary_vars = c("subject")
 )
+p_V_Human<-ggplot(V_Human, aes(x = mean_variance)) +
+  geom_histogram(binwidth = 0.002, fill = "#4575b4", color = "black") +
+  labs(
+       x = "Mean Variance Across Repeated Items",
+       y = "Number of Participants") +
+  theme_minimal()
 
+ggsave("fig/variance.png", p_V_Human, width = 6, height = 4.5, dpi = 300)
 # ----- Merge All Human Features -----
 final_Human <- M_Human %>%
   left_join(R_Human, by = c("subject")) %>%
