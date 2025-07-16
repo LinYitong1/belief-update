@@ -53,7 +53,7 @@ stengard_results <- run_analysis_pipeline(
                               HR = c(0.5, 0.9, 0.9), 
                               FAR = c(0.3, 0.5, 0.1)),
   calculate_variance = FALSE,
-  abc_tol =0.01
+  abc_tol =0.05
 )
 ggsave(file.path(plot_dir, "Figure_12.png"), stengard_results$plot,
        width = plot_width, height = plot_height, dpi = default_dpi)
@@ -98,40 +98,39 @@ experimental_results <- run_analysis_pipeline(
   ppc_subject_id     = "1",
   subject_col        = "subject",
   ref_points         = tibble(BR = c(0.01,  0.4,  0.97),
-                              HR = c( 0.72 , 0.9 ,0.53 ), 
-                              FAR = c(0.42,0.42, 0.11)),
+                              HR = c( 0.72 , 0.53 ,0.53 ), 
+                              FAR = c(0.42,0.31, 0.11)),
   calculate_variance = TRUE,
-  abc_tol =0.01)
-ggsave(file.path(plot_dir, "Figure_13.png"), experimental_results $plot,
+  abc_tol =0.05)
+ggsave(file.path(plot_dir, "Figure_13.png"), experimental_results$plot,
        width = plot_width, height = plot_height, dpi = default_dpi)
 
 post_exp<-as.data.table(experimental_results$posteriors_prediction)
 
- posterior_exp <- summarise_posterior(
-   post_pred= post_exp,
-   calculate_variance = TRUE)  
- 
- stats_long_exp <- prepare_stats_long(
-   posterior_all =  posterior_exp,
-   observed_df   = observed,
-   human_dt      = human_dt,
-   id_var        = "subject")  
- 
- density_stat_exp<-plot_density_stats(
-   stats_long_exp ,
-   dens_ncol   = 4)
- ggsave(file.path(plot_dir, "Figure_15.png"), density_stat_exp,
-        width = plot_width, height = plot_height, dpi = default_dpi)
- 
- overlap_tbl_exp<-get_overlap_tbl( stats_long_exp, bins =30)
- 
- hist_overlap_exp<-plot_hist_overlap(overlap_tbl_exp)
- ggsave(file.path(plot_dir, "Figure_18.png"),  hist_overlap_exp,
-        width = plot_width, height = plot_height, dpi = default_dpi)
- 
- ppp_results_exp <- calculate_ppp(stats_long_exp, alpha = 0.05)
- ppp_plot_exp <- plot_ppp_summary(ppp_results_exp, alpha_threshold = 0.05)
- 
- ggsave(file.path(plot_dir, "Figure_19.png"),   ppp_plot_exp ,
-        width = plot_width, height = plot_height, dpi = default_dpi)
- 
+posterior_exp <- summarise_posterior(
+  post_pred= post_exp,
+  calculate_variance = TRUE)  
+
+stats_long_exp <- prepare_stats_long(
+  posterior_all =  posterior_exp,
+  observed_df   = observed,
+  human_dt      = human_dt,
+  id_var        = "subject")  
+
+density_stat_exp<-plot_density_stats(
+  stats_long_exp ,
+  dens_ncol   = 4)
+ggsave(file.path(plot_dir, "Figure_15.png"), density_stat_exp,
+       width = plot_width, height = plot_height, dpi = default_dpi)
+
+overlap_tbl_exp<-get_overlap_tbl( stats_long_exp, bins =30)
+
+hist_overlap_exp<-plot_hist_overlap(overlap_tbl_exp)
+ggsave(file.path(plot_dir, "Figure_18.png"),  hist_overlap_exp,
+       width = plot_width, height = plot_height, dpi = default_dpi)
+
+ppp_results_exp <- calculate_ppp(stats_long_exp, alpha = 0.05)
+ppp_plot_exp <- plot_ppp_summary(ppp_results_exp, alpha_threshold = 0.05)
+
+ggsave(file.path(plot_dir, "Figure_19.png"),   ppp_plot_exp ,
+       width = plot_width, height = plot_height, dpi = default_dpi)

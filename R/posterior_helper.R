@@ -32,26 +32,40 @@ suppressPackageStartupMessages({
 abc_posterior <- function(obs_stats,
                           sim_params,
                           simulations,
-                          tol = 0.01) {
-  # Parameter and summary-statistic columns
-  PARAM_COLS <- c(paste0("p8_",1:3), paste0("q_",1:6), "N9", "v9")
-  SUM_COLS   <- setdiff(names(simulations), c("Iteration","model"))
+                          tol = 0.05) {
+  PARAM_COLS <- c(paste0("p8_", 1:3), paste0("q_", 1:6), "N9", "v9")
+  SUM_COLS   <- setdiff(names(simulations), c("Iteration", "model"))
   
-  # Input validation
-  stopifnot(is.numeric(obs_stats), length(obs_stats) == length(SUM_COLS))
-  stopifnot(all(PARAM_COLS %in% names(sim_params)), all(SUM_COLS %in% names(simulations)))
+  # ----- trial → iteration level  --------------------------------------------
+  sim_params <- as.data.table(sim_params)
+  sim_params_agg <- unique(sim_params[, c("Iteration", PARAM_COLS), with = FALSE])
+  setDT(sim_params_agg) 
+
+  prob_cols <- PARAM_COLS[1:9]              
+  fix01     <- function(x, eps = 1e-4) pmin(pmax(x, eps), 1 - eps)
+  sim_params_agg[, (prob_cols) := lapply(.SD, fix01), .SDcols = prob_cols]
   
-  sim_params  <- as.data.table(sim_params)
-  simulations <- as.data.table(simulations)
+  simulations   <- as.data.table(simulations)
+  keep_rows     <- complete.cases(simulations[, ..SUM_COLS])
+  sim_params_agg <- sim_params_agg[keep_rows]
+  simulations    <- simulations[keep_rows]
+  stopifnot(nrow(sim_params_agg) == nrow(simulations))
   
+  trans_vec <- c(rep("logit", 9), "log", "log")
+  bounds    <- cbind(rep(1e-4, 9), rep(1 - 1e-4, 9))  # 9 × 2
+  
+  # ----- ABC-----------------------------------------------------------
   abc::abc(
-    target  = obs_stats,
-    param   = sim_params[, ..PARAM_COLS],
-    sumstat = simulations[, ..SUM_COLS],
-    method  = "rejection",
-    tol     = tol
+    target        = obs_stats,
+    param         = sim_params_agg[, ..PARAM_COLS],
+    sumstat       = simulations[, ..SUM_COLS],
+    method        = "neuralnet",
+    tol           = tol,
+    transf        = trans_vec,
+    logit.bounds  = bounds              
   )
 }
+
 
 # -----------------------------------------------------------------------------
 # 2. ABC by Stimulus Format
@@ -67,7 +81,7 @@ abc_posterior <- function(obs_stats,
 compute_abc_by_format <- function(human_summary,
                                   sim_params,
                                   simulations,
-                                  tol = 0.01) {
+                                  tol = 0.05) {
   human_summary <- as_tibble(human_summary)
   sim_params    <- as_tibble(sim_params)
   simulations   <- as_tibble(simulations)
@@ -88,7 +102,9 @@ compute_abc_by_format <- function(human_summary,
     
     abc_obj <- abc_posterior(obs_stats, sim_params, simulations, tol)
     draws   <- as.data.frame(abc_obj$unadj.values)
-    draws$subject <- "global"
+    
+    draws$subject <- paste0("global_", fmt)
+    
     
     abc_res[[fmt]]    <- abc_obj
     post_draws[[fmt]] <- draws
@@ -230,6 +246,8 @@ add_okabe_color <- function() {
 #' @param vlines Reference lines tibble.
 #' @param xlab X-axis label.
 #' @param ylab Y-axis label.
+#' @param facet_cols  : Number of columns per row in facet_wrap, default is 3
+#' 
 plot_distribution <- function(data, vlines, xlab, ylab) {
   ggplot(data, aes(x = response_pct)) +
     geom_histogram( aes(y = after_stat(density)), binwidth = 3, fill = "#5b5e6e") +
@@ -278,7 +296,8 @@ plot_human_by_format <- function(df_raw, formats, vlines_all, plot_fn) {
       ) %>%
       filter(condition %in% vlines_all$condition)
   }
-  
+  format_order <- c("probability", "frequency")
+  formats <- intersect(format_order, formats)
   plots <- map(formats, function(fmt) {
     plt <- clean_human(df_raw, fmt) %>%
       plot_fn(vlines_all, paste("Human Estimates (%) -", fmt), "Density") 
@@ -384,6 +403,7 @@ run_analysis_pipeline <- function(
       strip.text        = element_text(face = "bold")
     )
   
+  
   message("--- Analysis for ", dataset_name, " complete. ---")
   list(plot = final_plot, 
        posteriors_parameter = abc_out$post_draws, 
@@ -461,14 +481,12 @@ prepare_stats_long <- function(
     (c("subject_s", "subject") %>% intersect(names(observed_df)) %>% first())
   if (is.na(id_var)) stop("ID column not found.", call. = FALSE)
   
-  format_tbl <- dplyr::distinct(human_dt, .data[[id_var]], format)
   
   indiv_obs <- observed_df |>
-    dplyr::left_join(format_tbl, by = id_var) |>
     dplyr::select(-dplyr::all_of(id_var))
   
   dplyr::bind_rows(
-    dplyr::mutate(indiv_obs,      type = "Observed"),
+    dplyr::mutate(indiv_obs ,      type = "Observed"),
     dplyr::mutate(posterior_all,  type = "Model")
   ) |>
     tidyr::pivot_longer(-c(type, dplyr::all_of(group_vars)),
@@ -592,7 +610,7 @@ plot_ppp_summary <-function(ppp_df, alpha_threshold = 0.05) {
       aes(x = stat, xend = stat, y = 0, yend = ppp),
       linewidth = 0.8 
     ) +
-
+    
     geom_point(size = 2) +
     geom_hline(
       yintercept = alpha_threshold, 
@@ -614,4 +632,3 @@ plot_ppp_summary <-function(ppp_df, alpha_threshold = 0.05) {
       panel.grid.minor.y = element_blank()
     )
 }
-

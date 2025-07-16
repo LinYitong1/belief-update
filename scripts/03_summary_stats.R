@@ -81,13 +81,13 @@ human_dt_s <- as.data.table(df_s)
 M_Human_s <- compute_all_metrics(
   df = human_dt_s,
   column = "response",
-  group_vars = c("subject_s")
+  group_vars = c("subject_s","format")
 )
 
 # Slope and intercept from regressions using response
 R_Human_s <- compute_SI_by(
   dt = human_dt_s,
-  group_vars = c("subject_s"),
+  group_vars = c("subject_s","format"),
   predictors = c("BR", "HR", "FAR"),
   column = "response"
 )
@@ -96,7 +96,7 @@ R_Human_s <- compute_SI_by(
 
 # ----- Merge All Human Features -----
 final_Human_s <- M_Human_s %>%
-  left_join(R_Human_s, by = c("subject_s"))
+  left_join(R_Human_s, by = c("subject_s","format"))
 
 saveRDS(final_Human_s, "data/Human_Summary_dts.rds")
 saveRDS(final_Simulate_s, "data/Simulate_Summary_dts.rds")
@@ -156,13 +156,13 @@ human_dt <- as.data.table(df)
 M_Human <- compute_all_metrics(
   df = human_dt,
   column = "response",
-  group_vars = c("subject")
+  group_vars = c("subject","format")
 )
 
 # Slope and intercept from regressions using response
 R_Human <- compute_SI_by(
   dt = human_dt,
-  group_vars = c("subject"),
+  group_vars = c("subject","format"),
   predictors = c("BR", "HR", "FAR"),
   column = "response"
 )
@@ -171,8 +171,8 @@ R_Human <- compute_SI_by(
 V_Human <- compute_variance_summary(
   dt = human_dt,
   column = "response",
-  group_vars = c("subject", "BR", "HR", "FAR"),
-  summary_vars = c("subject")
+  group_vars = c("subject", "BR", "HR", "FAR","format"),
+  summary_vars = c("subject","format")
 )
 p_V_Human<-ggplot(V_Human, aes(x = mean_variance)) +
   geom_histogram(binwidth = 0.002, fill = "#4575b4", color = "black") +
@@ -184,8 +184,8 @@ p_V_Human<-ggplot(V_Human, aes(x = mean_variance)) +
 ggsave("fig/variance.png", p_V_Human, width = 6, height = 4.5, dpi = 300)
 # ----- Merge All Human Features -----
 final_Human <- M_Human %>%
-  left_join(R_Human, by = c("subject")) %>%
-  left_join(V_Human, by = c("subject"))
+  left_join(R_Human, by = c("subject","format")) %>%
+  left_join(V_Human, by = c("subject","format"))
 
 saveRDS(final_Human, "data/Human_Summary_dt.rds")
 saveRDS(final_Simulate, "data/Simulate_Summary_dt.rds")
