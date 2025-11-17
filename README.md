@@ -56,9 +56,9 @@ source("scripts/00_data_process.R")                 # Clean data
 source("scripts/01_simulate_parameters.R")          # Generate priors
 source("scripts/02_generate_predictions.R")         # Model predictions
 source("scripts/03_summary_stats.R")                # Summary statistics
-source("scripts/04_abcrf_individual_inference.R")   # ABC-RF classification
-source("scripts/05_posterior.R")                    # ABC inference (HAmix)
-source("scripts/05_posterior_MH.R")                 # ABC-MH (MH model)
+source("scripts/04_abcrf_individual_inference.R")   # ABC-RF Individual Model Fitting
+source("scripts/05_posterior.R")                    # Posterior Check
+source("scripts/05_posterior_MH.R")                 # Posterior Check
 
 # Generate outputs
 source("scripts/00_plot.R")                         # Generate all figures
