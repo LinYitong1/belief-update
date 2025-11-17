@@ -197,16 +197,6 @@ git add .gitattributes
 
 ---
 
-## References
-
-Stengård, E., & van den Berg, R. (2019). Bayesian modeling of sequential belief updating. *Cognition*, 186, 132-169.
-
-Turner, B. M., & Van Zandt, T. (2012). A tutorial on approximate Bayesian computation. *Journal of Mathematical Psychology*, 56(2), 69-85.
-
-Pudlo, P., Marin, J. M., Estoup, A., Cornuet, J. M., Gautier, M., & Robert, C. P. (2016). Reliable ABC model choice via random forests. *Bioinformatics*, 32(6), 859-866.
-
----
-
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
