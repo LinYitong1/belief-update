@@ -21,8 +21,7 @@ belief-update/
 ├── R/                 # Model definitions and helper functions
 ├── scripts/           # Analysis pipeline (run in order)
 ├── fig/               # Generated figures (TIFF, PNG)
-├── Table/             # LaTeX tables
-└── tests/             # Unit tests
+└── Table/             # LaTeX tables
 ```
 
 ---
@@ -71,11 +70,30 @@ source("scripts/00_stats_table.R")  # Generate tables
 
 ## Models
 
-**17 models in 3 families:**
+### Summary of Candidate Models
 
-1. **Pure Heuristics** (7): BO, HO, FO, JO, LS, H, Random
-2. **Bayesian** (2): B_NH, BS_NH
-3. **Mixture Models** (8): MH, HAmix, MIN_BS_* variants
+Models are grouped by family with abbreviations and formal descriptions.
+
+| **Family** | **Model / Category** | **Abbrev.** | **Description** |
+|------------|---------------------|-------------|-----------------|
+| **Bayes Rule** | Bayes Rule | Bayes | The normative Bayesian posterior, serving as the optimal benchmark for comparison across models. |
+| **Simple Heuristics** | Heuristic rules | BO, REP, FC | Simple rules: Base rate Only (BO), REPresent (REP), False alarm Complement (FC). |
+| **Complex Heuristics** | Lexicographic | LE | Sequential cue evaluation with thresholds on BR, HR, and FAR. |
+| | Adaptive heuristic | AH | Selects, on each trial, the heuristic that minimizes absolute deviation from the Bayesian posterior. |
+| | Mixture heuristic | MH | Draws a heuristic on each trial from a categorical mixture with Dirichlet-weighted probabilities. |
+| **Linear Additive** | Linear additive | LA | Weighted linear combination of BR, HR, and FAR cues. |
+| **Bayesian Sampler** | Symmetric prior | BS | Limited-sample Bayesian inference with a symmetric prior centered at 0.5. |
+| | Asymmetric prior | BS-A | Limited-sample Bayesian inference with a prior mean drawn from a flexible subjective distribution. |
+| **Heuristic-Anchored Bayesian Sampler (HABS)** | Single-anchor | HABS_anchor | Dual-process mixture: the response is either the heuristic anchor or an anchored Bayesian sample. The subscript *anchor* denotes a specific heuristic (e.g., BO, REP, FC, JO, LS, or 0.5). |
+| | Mixture-anchor | HABS_mixed | Extension of HABS_anchor in which the anchor α is drawn on each trial from a set of simple heuristics according to probability vector **p**. Captures individual differences in deliberation (q) and anchor preferences (**p**). |
+
+### Additional Heuristics
+
+- **HO**: Hit rate Only
+- **FO**: False alarm rate complement (1 - FAR)
+- **JO**: Joint Occurrence (BR × HR)
+- **LS**: Likelihood Subtraction (HR - FAR)
+- **H**: 50% Heuristic (always responds 0.5)
 
 ---
 
