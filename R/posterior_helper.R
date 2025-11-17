@@ -1,34 +1,51 @@
-###############################################################################
-# Bayesian Cognition Helper Functions                                         #
-# Approximate Bayesian Computation & Posterior Predictive Checks               #
-# Author: <your-name>                                                          #
-# Date:   2025-07-01                                                           #
-###############################################################################
+################################################################################
+# POSTERIOR HELPER FUNCTIONS FOR BELIEF UPDATING MODELS
+################################################################################
+#
+# This module implements Approximate Bayesian Computation (ABC) inference and
+# posterior predictive checking for cognitive models of belief updating.
+#
+# Core functionality:
+#   - ABC rejection sampling with neural network adjustment
+#   - Posterior predictive simulations
+#   - Model validation metrics (overlap coefficients, PPP values)
+#   - Visualization utilities for posterior diagnostics
+#
+# Author: Yitong Lin
+################################################################################
 
-# -----------------------------------------------------------------------------
-# 0. Load Required Packages
-# -----------------------------------------------------------------------------
+
+################################################################################
+# 0. DEPENDENCIES
+################################################################################
 
 suppressPackageStartupMessages({
-  library(data.table)  # Fast data manipulation
-  library(dplyr)       # Data wrangling
-  library(purrr)       # Functional programming tools
-  library(abc)         # Approximate Bayesian Computation
-  library(tidyr)       # Tidy data utilities
-  library(ggplot2)  
-  library(patchwork)# Data visualization
+  library(data.table)
+  library(dplyr)
+  library(purrr)
+  library(abc)
+  library(tidyr)
+  library(ggplot2)
+  library(patchwork)
 })
 
-# -----------------------------------------------------------------------------
-# 1. ABC Posterior Estimation (Rejection Sampling)
-# -----------------------------------------------------------------------------
-#' Estimate posterior samples via ABC rejection
+
+################################################################################
+# 1. ABC POSTERIOR INFERENCE
+################################################################################
+
+# ---- 1.1 ABC Rejection Sampling for 11-Parameter Model --------------------
+#' Estimate posterior distributions via ABC rejection sampling
 #'
-#' @param obs_stats   Numeric vector of observed summary statistics (order must match `simulations`).
-#' @param sim_params  Data frame of simulated parameters (columns p8_1,p8_2,p8_3,q_1..q_6,N9,v9).
-#' @param simulations Data frame of simulated summary statistics (excluding Iteration, model).
-#' @param tol         Tolerance fraction for ABC (default 0.01).
-#' @return            An 'abc' class object containing posterior draws.
+#' Implements neural network-adjusted ABC (Blum & François, 2010) with logit
+#' transformation for bounded parameters and log transformation for unbounded.
+#'
+#' @param obs_stats   Observed summary statistics (numeric vector)
+#' @param sim_params  Simulated parameter draws (data.frame with p8_1:3, q_1:6, N9, v9)
+#' @param simulations Simulated summary statistics matching obs_stats structure
+#' @param tol         Tolerance threshold for rejection (default: 0.05)
+#' @return            abc object containing posterior samples
+
 abc_posterior <- function(obs_stats,
                           sim_params,
                           simulations,
@@ -36,12 +53,59 @@ abc_posterior <- function(obs_stats,
   PARAM_COLS <- c(paste0("p8_", 1:3), paste0("q_", 1:6), "N9", "v9")
   SUM_COLS   <- setdiff(names(simulations), c("Iteration", "model"))
   
-  # ----- trial → iteration level  --------------------------------------------
+  # Aggregate to iteration level
   sim_params <- as.data.table(sim_params)
   sim_params_agg <- unique(sim_params[, c("Iteration", PARAM_COLS), with = FALSE])
   setDT(sim_params_agg) 
-
+  
+  # Constrain probabilities to (ε, 1-ε) to avoid boundary issues
   prob_cols <- PARAM_COLS[1:9]              
+  fix01     <- function(x, eps = 1e-4) pmin(pmax(x, eps), 1 - eps)
+  sim_params_agg[, (prob_cols) := lapply(.SD, fix01), .SDcols = prob_cols]
+  
+  # Remove incomplete cases
+  simulations   <- as.data.table(simulations)
+  keep_rows     <- complete.cases(simulations[, ..SUM_COLS])
+  sim_params_agg <- sim_params_agg[keep_rows]
+  simulations    <- simulations[keep_rows]
+  stopifnot(nrow(sim_params_agg) == nrow(simulations))
+  
+  # Transformation specifications
+  trans_vec <- c(rep("logit", 9), "log", "log")
+  bounds    <- cbind(rep(1e-4, 9), rep(1 - 1e-4, 9))
+  
+  # ABC with neural network adjustment
+  abc::abc(
+    target        = obs_stats,
+    param         = sim_params_agg[, ..PARAM_COLS],
+    sumstat       = simulations[, ..SUM_COLS],
+    method        = "neuralnet",
+    tol           = tol,
+    transf        = trans_vec,
+    logit.bounds  = bounds              
+  )
+}
+
+# ---- 1.2 ABC Rejection Sampling for 7-Parameter MH Model ------------------
+#' ABC inference for Matching Heuristic (MH) model variant
+#'
+#' Specialized version for 7-parameter model without sample size and prior strength.
+#'
+#' @inheritParams abc_posterior
+#' @return abc object with 7 posterior parameter samples
+
+abc_posterior_MH <- function(obs_stats,
+                          sim_params,
+                          simulations,
+                          tol = 0.05) {
+  PARAM_COLS <- c(paste0("p7_", 1:7))
+  SUM_COLS   <- setdiff(names(simulations), c("Iteration", "model"))
+  
+  sim_params <- as.data.table(sim_params)
+  sim_params_agg <- unique(sim_params[, c("Iteration", PARAM_COLS), with = FALSE])
+  setDT(sim_params_agg) 
+  
+  prob_cols <- PARAM_COLS[1:7]              
   fix01     <- function(x, eps = 1e-4) pmin(pmax(x, eps), 1 - eps)
   sim_params_agg[, (prob_cols) := lapply(.SD, fix01), .SDcols = prob_cols]
   
@@ -51,10 +115,9 @@ abc_posterior <- function(obs_stats,
   simulations    <- simulations[keep_rows]
   stopifnot(nrow(sim_params_agg) == nrow(simulations))
   
-  trans_vec <- c(rep("logit", 9), "log", "log")
-  bounds    <- cbind(rep(1e-4, 9), rep(1 - 1e-4, 9))  # 9 × 2
+  trans_vec <- c(rep("logit", 7))
+  bounds    <- cbind(rep(1e-4, 7), rep(1 - 1e-4, 7))  
   
-  # ----- ABC-----------------------------------------------------------
   abc::abc(
     target        = obs_stats,
     param         = sim_params_agg[, ..PARAM_COLS],
@@ -67,17 +130,19 @@ abc_posterior <- function(obs_stats,
 }
 
 
-# -----------------------------------------------------------------------------
-# 2. ABC by Stimulus Format
-# -----------------------------------------------------------------------------
-#' Compute ABC posteriors separately for each format
+################################################################################
+# 2. FORMAT-SPECIFIC ABC INFERENCE
+################################################################################
+
+# ---- 2.1 ABC by Presentation Format (11-Parameter Model) ------------------
+#' Compute ABC posteriors separately for probability and frequency formats
 #'
-#' @param human_summary Tibble with observed summary stats and 'format'.
-#' @param sim_params    Tibble of parameter draws including 'format'.
-#' @param simulations   Tibble of simulated stats including 'format'.
-#' @param tol           Tolerance for rejection (default 0.01).
-#' @return              List with 'abc_res' (per-format abc objects) and
-#'                      'post_draws' (raw posterior samples).
+#' @param human_summary Summary statistics from empirical data with format column
+#' @param sim_params    Parameter samples from prior
+#' @param simulations   Simulated summary statistics
+#' @param tol           ABC tolerance threshold
+#' @return List containing abc results and posterior draws for each format
+
 compute_abc_by_format <- function(human_summary,
                                   sim_params,
                                   simulations,
@@ -102,9 +167,7 @@ compute_abc_by_format <- function(human_summary,
     
     abc_obj <- abc_posterior(obs_stats, sim_params, simulations, tol)
     draws   <- as.data.frame(abc_obj$unadj.values)
-    
     draws$subject <- paste0("global_", fmt)
-    
     
     abc_res[[fmt]]    <- abc_obj
     post_draws[[fmt]] <- draws
@@ -113,20 +176,65 @@ compute_abc_by_format <- function(human_summary,
   list(abc_res = abc_res, post_draws = post_draws, tol = tol)
 }
 
-# -----------------------------------------------------------------------------
-# 3. Posterior Predictive Checks (Global)
-# -----------------------------------------------------------------------------
-#' Generate posterior predictive distributions for trials
+# ---- 2.2 ABC by Presentation Format (7-Parameter MH Model) ----------------
+#' Format-specific ABC for MH model variant
 #'
-#' @param post_params Data frame of posterior parameter draws.
-#' @param df_raw      Raw trial data with BR, HR, FAR, true_posterior, response.
-#' @return            Tibble of sample × trial predictions and covariates.
+#' @inheritParams compute_abc_by_format
+#' @return List of ABC results for MH model by format
+
+compute_abc_by_format_MH <- function(human_summary,
+                                  sim_params,
+                                  simulations,
+                                  tol = 0.05) {
+  human_summary <- as_tibble(human_summary)
+  sim_params    <- as_tibble(sim_params)
+  simulations   <- as_tibble(simulations)
+  
+  stopifnot("format" %in% names(human_summary))
+  formats <- unique(human_summary$format)
+  
+  SUM_COLS <- setdiff(names(simulations), c("Iteration","model"))
+  
+  abc_res    <- setNames(vector("list", length(formats)), formats)
+  post_draws <- setNames(vector("list", length(formats)), formats)
+  
+  for (fmt in formats) {
+    obs_stats <- human_summary %>%
+      filter(format == fmt) %>%
+      dplyr::select(all_of(SUM_COLS)) %>%
+      unlist(use.names = FALSE)
+    
+    abc_obj <- abc_posterior_MH(obs_stats, sim_params, simulations, tol)
+    draws   <- as.data.frame(abc_obj$unadj.values)
+    draws$subject <- paste0("global_", fmt)
+    
+    abc_res[[fmt]]    <- abc_obj
+    post_draws[[fmt]] <- draws
+  }
+  
+  list(abc_res = abc_res, post_draws = post_draws, tol = tol)
+}
+
+
+################################################################################
+# 3. POSTERIOR PREDICTIVE SIMULATIONS
+################################################################################
+
+# ---- 3.1 Generate Predictions (11-Parameter Model) ------------------------
+#' Generate posterior predictive samples for trial-level predictions
+#'
+#' For each posterior parameter draw, simulate model predictions across all
+#' trials including stochastic sample size effects.
+#'
+#' @param post_params Posterior parameter samples
+#' @param df_raw      Trial-level data with BR, HR, FAR, true_posterior, response
+#' @return Tibble with predictions for each posterior sample × trial combination
+
 generate_ppc_global <- function(post_params, df_raw) {
   n_samples <- nrow(post_params)
   n_trials  <- nrow(df_raw)
   
   trial_fixed <- df_raw %>% dplyr::select(BR, HR, FAR, true_posterior, response)
-  
   rep_param <- function(x) rep(as.numeric(x), n_trials)
   
   results <- map_dfr(seq_len(n_samples), function(i) {
@@ -168,15 +276,77 @@ generate_ppc_global <- function(post_params, df_raw) {
   results
 }
 
-# -----------------------------------------------------------------------------
-# 4. Reference Lines Generator
-# -----------------------------------------------------------------------------
-#' Create benchmark heuristic lines for plotting
+# ---- 3.2 Generate Predictions (7-Parameter MH Model) ----------------------
+#' Posterior predictive simulations for MH model
 #'
-#' @param df          Data frame of observations or predictions.
-#' @param ref_points  Data frame of conditions (BR, HR, FAR).
-#' @param heuristics  Character vector of heuristic names.
-#' @return            Tibble of heuristic values per condition.
+#' @inheritParams generate_ppc_global
+#' @param seed Optional random seed for reproducibility
+#' @return Posterior predictive samples for MH model
+
+generate_ppc_global_MH <- function(post_params, df_raw, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  
+  n_samples <- nrow(post_params)
+  n_trials  <- nrow(df_raw)
+  
+  trial_fixed <- df_raw %>% dplyr::select(BR, HR, FAR, true_posterior, response)
+  rep_param <- function(x) rep(as.numeric(x), n_trials)
+  
+  purrr::map_dfr(seq_len(n_samples), function(i) {
+    pars <- post_params[i, ]
+    
+    pred_df <- tibble::tibble(
+      p7_1 = rep_param(pars$p7_1), p7_2 = rep_param(pars$p7_2), p7_3 = rep_param(pars$p7_3),
+      p7_4 = rep_param(pars$p7_4), p7_5 = rep_param(pars$p7_5), p7_6 = rep_param(pars$p7_6),
+      p7_7 = rep_param(pars$p7_7)
+    ) %>% dplyr::bind_cols(trial_fixed)
+    
+    preds <- mapply(
+      FUN  = mixed_heuristic_model,
+      BR   = pred_df$BR,
+      HR   = pred_df$HR,
+      FAR  = pred_df$FAR,
+      p_1  = pred_df$p7_1,
+      p_2  = pred_df$p7_2,
+      p_3  = pred_df$p7_3,
+      p_4  = pred_df$p7_4,
+      p_5  = pred_df$p7_5,
+      p_6  = pred_df$p7_6,
+      p_7  = pred_df$p7_7,
+      SIMPLIFY = FALSE
+    )
+    
+    values <- vapply(preds, function(df) df[["value"]][1], numeric(1))
+    
+    tibble::tibble(
+      sample         = i,
+      trial          = seq_len(n_trials),
+      prediction     = as.numeric(values),
+      BR             = pred_df$BR,
+      HR             = pred_df$HR,
+      FAR            = pred_df$FAR,
+      true_posterior = pred_df$true_posterior
+    )
+  })
+}
+
+
+################################################################################
+# 4. VISUALIZATION UTILITIES
+################################################################################
+
+# ---- 4.1 Reference Lines for Heuristic Benchmarks -------------------------
+#' Compute heuristic benchmark values for reference in plots
+#'
+#' Calculates values for common heuristics: Bayesian Observer (BO),
+#' False Complement (FC), Joint Occurrence (JO), Limited Stochasticity (LS),
+#' Representativeness (REP), 50% bias, and normative Bayes.
+#'
+#' @param df          Data frame with BR, HR, FAR, true_posterior
+#' @param ref_points  Conditions to compute benchmarks for
+#' @param heuristics  Names of heuristics to include
+#' @return Long-format tibble with heuristic values per condition
+
 get_reference_lines <- function(df, ref_points,
                                 heuristics = c("REP","BO","FC","JO","LS","50%","Bayes")) {
   df %>%
@@ -197,14 +367,13 @@ get_reference_lines <- function(df, ref_points,
     mutate(heuristic = factor(heuristic, levels = heuristics))
 }
 
-# -----------------------------------------------------------------------------
-# 5. Clean & Annotate PPC Results
-# -----------------------------------------------------------------------------
-#' Annotate PPC data with heuristic values
+# ---- 4.2 Annotate Posterior Predictions with Heuristics -------------------
+#' Add heuristic values to posterior predictive samples
 #'
-#' @param ppc_df   PPC predictions data frame (with BR, HR, FAR).
-#' @param vlines   Reference lines tibble including 'condition'.
-#' @return         Filtered and annotated tibble for plotting.
+#' @param ppc_df PPC predictions with BR, HR, FAR
+#' @param vlines Reference lines defining conditions to include
+#' @return Annotated tibble ready for visualization
+
 clean_ppc <- function(ppc_df, vlines) {
   ppc_df %>%
     mutate(
@@ -222,10 +391,8 @@ clean_ppc <- function(ppc_df, vlines) {
     filter(condition %in% unique(vlines$condition))
 }
 
-# -----------------------------------------------------------------------------
-# 6. Plotting Helpers
-# -----------------------------------------------------------------------------
-# Okabe–Ito colorblind-friendly palette
+# ---- 4.3 Color Palette and Scaling ----------------------------------------
+# Okabe-Ito colorblind-friendly palette for heuristic reference lines
 okabe_ito <- c(
   BO    = "#E69F00", FC   = "#56B4E9", JO = "#009E73",
   LS    = "#F0E442", REP  = "#0072B2", `50%` = "#CC79A7", Bayes = "#D55E00"
@@ -240,89 +407,296 @@ add_okabe_color <- function() {
   scale_color_manual(name = "Heuristic", values = okabe_ito, labels = heur_labels)
 }
 
-#' Plot distribution with heuristic reference lines
+
+################################################################################
+# 5. POSTERIOR VALIDATION METRICS
+################################################################################
+
+# ---- 5.1 Summary Statistics from Posterior Samples ------------------------
+#' Compute summary statistics and regression slopes from posterior predictions
 #'
-#' @param data Data frame with 'response_pct' and 'condition'.
-#' @param vlines Reference lines tibble.
-#' @param xlab X-axis label.
-#' @param ylab Y-axis label.
-#' @param facet_cols  : Number of columns per row in facet_wrap, default is 3
-#' 
-plot_distribution <- function(data, vlines, xlab, ylab) {
-  ggplot(data, aes(x = response_pct)) +
-    geom_histogram( aes(y = after_stat(density)), binwidth = 3, fill = "#5b5e6e") +
-    geom_vline(data = vlines, aes(xintercept = value, colour = heuristic),
-               linetype = "dashed", size = .6) +
-    add_okabe_color() +
-    facet_wrap(~ condition, ncol = 1, scales = "free_y") +
-    coord_cartesian(ylim = c(0,0.13)) +
-    labs(x = xlab, y = ylab) +
-    theme_bw(base_size = 5) +
-    theme(
-      panel.grid.major.y = element_line(size = 0.3, colour = "grey85"),
-      panel.grid.minor   = element_blank(),
-      strip.background   = element_blank(),
-      strip.text         = element_text(face = "bold"),
-      legend.position    = "bottom",
-      legend.key.height  = unit(4, "mm"),
-      legend.text        = element_text(size = 6),
-      axis.title.x       = element_text(size = 5),  
-      axis.title.y       = element_text(size = 5),  
-      axis.text.x        = element_text(size = 4.5),
-      axis.text.y        = element_text(size = 4.5)
+#' Aggregates posterior predictive samples to compute mean, variance, quantiles,
+#' and regression slopes against design variables (BR, HR, FAR).
+#'
+#' @param post_pred           Posterior predictive samples
+#' @param column              Response column name
+#' @param group_vars          Grouping variables (sample, format)
+#' @param predictors          Design variables for regression
+#' @param calculate_variance  Include variance decomposition
+#' @param variance_column     Column for variance calculation
+#' @param var_group_vars      Grouping for variance decomposition
+#' @param var_summary_vars    Summary level for variance
+#' @return Tibble with summary statistics per posterior sample
+
+summarise_posterior <- function(
+    post_pred,
+    column          = "prediction",
+    group_vars      = c("sample", "format"),
+    predictors      = c("BR", "HR", "FAR"),
+    calculate_variance = FALSE,
+    variance_column    = column,
+    var_group_vars     = c("sample", "format", "BR", "HR", "FAR"),
+    var_summary_vars   = c("sample", "format")
+) {
+  
+  dt <- data.table::as.data.table(post_pred)
+  
+  metrics <- compute_all_metrics(
+    df         = dt,
+    column     = column,
+    group_vars = group_vars
+  )
+  
+  slopes  <- compute_SI_by(
+    dt         = dt,
+    group_vars = group_vars,
+    predictors = predictors,
+    column     = column
+  )
+  
+  final_tbl <- dplyr::left_join(metrics, slopes, by = group_vars)
+  
+  if (calculate_variance) {
+    var_tbl <- compute_variance_summary(
+      post_pred,
+      column       = variance_column,
+      group_vars   = var_group_vars,
+      summary_vars = var_summary_vars
+    )
+    
+    join_keys <- intersect(names(final_tbl), names(var_tbl))
+    final_tbl <- dplyr::left_join(final_tbl, var_tbl, by = join_keys)
+  }
+  
+  final_tbl
+}
+
+# ---- 5.2 Combine Observed and Model Statistics ----------------------------
+#' Prepare long-format table combining observed and model-predicted statistics
+#'
+#' @param posterior_all  Summary statistics from posterior
+#' @param observed_df    Observed summary statistics
+#' @param human_dt       Raw human data (unused, for compatibility)
+#' @param group_vars     Grouping variables
+#' @param id_var         Subject identifier column
+#' @return Long-format tibble with type indicator (Observed vs Model)
+
+prepare_stats_long <- function(
+    posterior_all,
+    observed_df,
+    human_dt,
+    group_vars = c("sample", "format"),
+    id_var = NULL) {
+  
+  id_var <- id_var %||%
+    (c("subject_s", "subject") %>% intersect(names(observed_df)) %>% first())
+  if (is.na(id_var)) stop("ID column not found.", call. = FALSE)
+  
+  indiv_obs <- observed_df |>
+    dplyr::select(-dplyr::all_of(id_var))
+  
+  dplyr::bind_rows(
+    dplyr::mutate(indiv_obs ,      type = "Observed"),
+    dplyr::mutate(posterior_all,  type = "Model")
+  ) |>
+    tidyr::pivot_longer(-c(type, dplyr::all_of(group_vars)),
+                        names_to = "stat", values_to = "value") |>
+    dplyr::select(-dplyr::all_of(group_vars))
+}
+
+# ---- 5.3 Distribution Overlap Coefficient ----------------------------------
+#' Compute histogram-based overlap coefficient between two distributions
+#'
+#' Overlap coefficient = sum of minima of normalized histogram bins.
+#' Values range from 0 (no overlap) to 1 (perfect overlap).
+#'
+#' @param x     First distribution
+#' @param y     Second distribution
+#' @param bins  Number of histogram bins
+#' @return Overlap coefficient
+
+compute_hist_overlap <- function(x, y, bins = 30) {
+  x <- x[is.finite(x)]
+  y <- y[is.finite(y)]
+  if (length(x) == 0 || length(y) == 0) return(NA_real_)
+  rng <- range(c(x, y), finite = TRUE)
+  if (diff(rng) == 0) return(1)
+  
+  breaks <- seq(rng[1], rng[2], length.out = bins + 1)
+  
+  hx <- hist(x, breaks = breaks, plot = FALSE, right = FALSE)
+  hy <- hist(y, breaks = breaks, plot = FALSE, right = FALSE)
+  
+  px <- hx$counts / sum(hx$counts)     
+  py <- hy$counts / sum(hy$counts)
+  
+  sum(pmin(px, py))
+}
+
+#' Calculate overlap coefficients for all summary statistics
+#'
+#' @param stats_long  Long-format table with Observed and Model statistics
+#' @param bins        Number of bins for histogram overlap
+#' @return Table of overlap coefficients per statistic
+
+get_overlap_tbl <- function(stats_long, bins = 30) {
+  stats_long |>
+    dplyr::filter(!grepl("subject_s", stat)) |>
+    dplyr::group_by(stat) |>
+    tidyr::nest() |>
+    dplyr::mutate(
+      overlap = purrr::map_dbl(data, \(df) {
+        x <- df |> dplyr::filter(type == "Model")    |> dplyr::pull(value)
+        y <- df |> dplyr::filter(type == "Observed") |> dplyr::pull(value)
+        compute_hist_overlap(x, y, bins = bins)
+      })
+    ) |>
+    dplyr::select(stat, overlap) |>
+    dplyr::arrange(overlap) |>
+    data.table::as.data.table()
+}
+
+# ---- 5.4 Posterior Predictive P-values ------------------------------------
+#' Calculate posterior predictive p-values (Schmidt et al., 2023)
+#'
+#' Computes one-sided PPP: proportion of posterior predictive samples
+#' where statistic ≥ observed value. Extreme values (close to 0 or 1)
+#' indicate model misfit.
+#'
+#' @param df     Combined observed and model statistics
+#' @param alpha  Threshold for flagging poor fit
+#' @return Table with PPP values and fit indicators per statistic
+
+calculate_ppp <- function(df, alpha = 0.05) {
+  df %>%
+    group_by(stat) %>%
+    summarise(
+      T_obs = value[type == "Observed"][1],
+      T_rep = list(value[type == "Model"]),
+      ppp   = mean(T_rep[[1]] >= T_obs),      
+      .groups = "drop"
+    ) %>%
+    mutate(
+      bad_fit   = ppp < alpha,
+      direction = if_else(bad_fit, "under", "ok")   
     )
 }
 
-# -----------------------------------------------------------------------------
-# 7. Human Estimates by Format
-# -----------------------------------------------------------------------------
-#' Plot human responses by format using a custom function
+
+################################################################################
+# 6. PARAMETER UTILITIES
+################################################################################
+
+# ---- 6.1 Aggregate Parameters by Iteration (11-Parameter Model) -----------
+#' Extract unique parameter sets from trial-level simulations
 #'
-#' @param df_raw     Raw human data with 'format', BR, HR, FAR, true_posterior, response.
-#' @param formats    Vector of format labels.
-#' @param vlines_all Reference lines tibble.
-#' @param plot_fn    Plotting function (e.g., plot_distribution).
-#' @return           Named list of ggplot objects.
-plot_human_by_format <- function(df_raw, formats, vlines_all, plot_fn) {
-  clean_human <- function(df, fmt) {
-    df %>%
-      filter(format == fmt) %>%
-      mutate(
-        condition = paste0("BR=", BR, ", HR=", HR, ", FAR=", FAR),
-        Bayes = true_posterior, REP = HR, BO = BR, FC = 1 - FAR,
-        JO = BR * HR, LS = HR - FAR, `50%` = 0.5,
-        across(c(REP,BO,FC,JO,LS,`50%`,Bayes), ~ .x * 100),
-        response_pct = response * 100
-      ) %>%
-      filter(condition %in% vlines_all$condition)
-  }
-  format_order <- c("probability", "frequency")
-  formats <- intersect(format_order, formats)
-  plots <- map(formats, function(fmt) {
-    plt <- clean_human(df_raw, fmt) %>%
-      plot_fn(vlines_all, paste("Human Estimates (%) -", fmt), "Density") 
-    plt
-  })
-  names(plots) <- formats
-  plots
+#' @param sim_params  Trial-level parameter table with Iteration column
+#' @param param_cols  Parameter names to extract
+#' @return Iteration-level parameter table
+
+aggregate_sim_params <- function(sim_params, 
+                                 param_cols = c(paste0("p8_", 1:3), 
+                                                paste0("q_", 1:6), 
+                                                "N9", "v9")) {
+  sim_params <- as.data.table(sim_params)
+  sim_params_agg <- unique(sim_params[, c("Iteration", param_cols), with = FALSE])
+  setDT(sim_params_agg)
+  return(sim_params_agg)
 }
 
-# -----------------------------------------------------------------------------
-# 8. Full Analysis Pipeline
-# -----------------------------------------------------------------------------
-#' Run complete pipeline: summaries, ABC, PPC, and plotting
+# ---- 6.2 Aggregate Parameters by Iteration (7-Parameter MH Model) ---------
+#' Extract unique parameter sets for MH model
 #'
-#' @param dataset_name   Label for dataset.
-#' @param human_data     Raw human trial data.
-#' @param sim_params     Simulation parameter draws.
-#' @param simulations    Simulation summary statistics.
-#' @param ppc_subject_id ID of subject for PPC.
-#' @param subject_col    Column name for subject filter.
-#' @param ref_points     Data frame of benchmark conditions.
-#' @param calculate_variance Logical to include variance in summaries.
-#' @param abc_tol        ABC tolerance (default 0.01).
-#' @return               List with final plot, posterior draws, and summaries.
-run_analysis_pipeline <- function(
+#' @inheritParams aggregate_sim_params
+#' @return Iteration-level MH parameter table
+
+aggregate_sim_params_MH <- function(sim_params, 
+                                 param_cols = c(paste0("p7_", 1:7))) {
+  sim_params <- as.data.table(sim_params)
+  sim_params_agg <- unique(sim_params[, c("Iteration", param_cols), with = FALSE])
+  setDT(sim_params_agg)
+  return(sim_params_agg)
+}
+
+# ---- 6.3 Prior vs Posterior Visualization ---------------------------------
+#' Plot prior and posterior distributions for a single parameter
+#'
+#' Generates density plots comparing prior distribution (from simulations)
+#' against posterior distributions for frequency and probability formats.
+#'
+#' @param param_name     Parameter to visualize
+#' @param prior_sampler  Function to sample from prior
+#' @param data           Analysis results containing posteriors_parameter
+#' @param x_label        Axis label for parameter
+#' @param title          Plot title (optional)
+#' @return ggplot object
+
+plot_prior_vs_posterior_param <- function(param_name,
+                                          prior_sampler,
+                                          data,
+                                          x_label = NULL,
+                                          title = NULL) {
+  if (is.null(x_label)) x_label <- param_name
+  
+  posterior_freq <- data$posteriors_parameter$frequency[[param_name]]
+  posterior_prob <- data$posteriors_parameter$probability[[param_name]]
+  prior <- prior_sampler(n_samples)
+  
+  df <- data.frame(
+    value = c(prior, posterior_freq, posterior_prob),
+    source = factor(c(
+      rep("Prior", length(prior)),
+      rep("Posterior (Freq)", length(posterior_freq)),
+      rep("Posterior (Prob)", length(posterior_prob))
+    ), levels = c("Prior", "Posterior (Freq)", "Posterior (Prob)"))
+  )
+  
+  ggplot(df, aes(x = value, color = source)) +
+    geom_density(size = 0.6, adjust = 1.2) +
+    scale_color_manual(values = c(
+      "Prior" = "#333333",
+      "Posterior (Freq)" = "#D55E00",
+      "Posterior (Prob)" = "#0072B2"
+    )) +
+    labs(title = title, x = x_label, y = "Density") +
+    theme_classic(base_size = 10) +             
+    theme(
+      legend.title  = element_blank(),
+      legend.position = "right",
+      legend.key.height = unit(3, "mm"),
+      legend.text   = element_text(size = 8),    
+      plot.title    = element_text(size = 11, face = "bold", hjust = 0.5),
+      axis.title    = element_text(size = 9),
+      axis.text     = element_text(size = 8)
+    )
+}
+
+
+################################################################################
+# 7. INTEGRATED ANALYSIS PIPELINES
+################################################################################
+
+# ---- 7.1 Full Pipeline with Overlayed Histograms (11-Parameter Model) ----
+#' Complete ABC inference and posterior predictive checking workflow
+#'
+#' Executes full analysis pipeline:
+#'   1. Compute summary statistics from empirical data by format
+#'   2. Run ABC rejection sampling to estimate posteriors
+#'   3. Generate posterior predictive samples
+#'   4. Create overlayed histograms comparing data and predictions
+#'
+#' @param dataset_name        Label for output messages
+#' @param human_data          Trial-level empirical data
+#' @param sim_params          Prior parameter samples
+#' @param simulations         Simulated summary statistics from prior
+#' @param ppc_subject_id      Subject ID for posterior predictive plot
+#' @param subject_col         Column name for subject identifier
+#' @param ref_points          Stimulus conditions for reference lines
+#' @param calculate_variance  Include variance decomposition in summaries
+#' @param abc_tol             ABC rejection tolerance
+#' @return List with final plot, posterior samples, predictions, summaries
+
+run_analysis_pipeline_overlap <- function(
     dataset_name,
     human_data,
     sim_params,
@@ -335,7 +709,7 @@ run_analysis_pipeline <- function(
 ) {
   message("--- Running Analysis for: ", dataset_name, " ---")
   
-  # 1. Human summary by format
+  # Compute empirical summary statistics
   human_sum <- compute_all_metrics(
     df = human_data,
     column = "response",
@@ -358,7 +732,7 @@ run_analysis_pipeline <- function(
     final_human <- left_join(final_human, var_summary, by = "format")
   }
   
-  # 2. ABC estimation
+  # ABC posterior estimation
   abc_out <- compute_abc_by_format(
     human_summary = final_human,
     sim_params     = sim_params,
@@ -366,7 +740,7 @@ run_analysis_pipeline <- function(
     tol            = abc_tol
   )
   
-  # 3. Posterior predictive checks
+  # Generate posterior predictive samples
   subject_filter <- rlang::expr(!!rlang::sym(subject_col) == ppc_subject_id)
   target_data    <- filter(human_data, !!subject_filter)
   
@@ -376,259 +750,223 @@ run_analysis_pipeline <- function(
     mutate(format = "frequency")
   ppc_all  <- bind_rows(ppc_prob, ppc_freq)
   
-  # 4. Reference lines & cleaning
+  # Prepare visualization data
   ref_lines <- get_reference_lines(human_data, ref_points)
+
   ppc_clean_p <- clean_ppc(ppc_prob, ref_lines)
   ppc_clean_f <- clean_ppc(ppc_freq, ref_lines)
+  vlines_all<-ref_lines
+  human_df_prob <- human_data %>% 
+    filter(format == "probability") %>%
+    mutate(condition = paste0("BR=",BR,", HR=",HR,", FAR=",FAR),
+           response_pct = response * 100)%>%
+    filter(condition %in% vlines_all$condition)
   
-  # 5. Plotting
-  human_plots <- plot_human_by_format(
-    df_raw  = human_data,
-    formats = unique(human_data$format),
-    vlines_all = ref_lines,
-    plot_fn = plot_distribution
-  )
-  model_p <- plot_distribution(ppc_clean_p, ref_lines,
-                               "Posterior Prediction (%) - Probability","Density")
-  model_f <- plot_distribution(ppc_clean_f, ref_lines,
-                               "Posterior Prediction (%) - Frequency","Density")
+  human_df_freq <- human_data %>% 
+    filter(format == "frequency") %>%
+    mutate(condition = paste0("BR=",BR,", HR=",HR,", FAR=",FAR),
+           response_pct = response * 100)%>%
+    filter(condition %in% vlines_all$condition)
   
-  final_plot <- (human_plots[[1]] | human_plots[[2]] | model_p | model_f) +
-    plot_layout(ncol = 4, guides = "collect") &
-    theme(
-      plot.title        = element_text(size = 5, hjust = 0.5),
-      legend.position   = "bottom",
-      legend.key.height = unit(4, "mm"),
-      legend.text       = element_text(size = 5),
-      strip.text        = element_text(face = "bold")
+  model_df_prob <- ppc_clean_p %>% 
+    mutate(response_pct = prediction * 100,
+           condition = paste0("BR=",BR,", HR=",HR,", FAR=",FAR))%>%
+    filter(condition %in% vlines_all$condition)
+  
+  model_df_freq <- ppc_clean_f  %>% 
+    mutate(response_pct = prediction * 100,
+           condition = paste0("BR=",BR,", HR=",HR,", FAR=",FAR))%>%
+    filter(condition %in% vlines_all$condition)
+  
+  # Create overlayed histogram plots
+  plot_overlay <- function(human_df, model_df, ref_lines, format_label) {
+    combined_df <- bind_rows(
+      mutate(human_df, type = "Human"),
+      mutate(model_df, type = "Model")
     )
+    
+    ggplot() +
+      geom_histogram(data = combined_df,
+                     aes(x = response_pct, y = after_stat(density), fill = type, color = type),
+                     binwidth = 3, alpha = 0.7, position = "identity") +
+      geom_vline(data = ref_lines, aes(xintercept = value, colour = heuristic),
+                 linetype = "dashed", size = 0.5) +
+      scale_fill_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
+      scale_color_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
+      facet_wrap(~ condition, ncol = 1, scales = "free_y") +
+      add_okabe_color() +
+      coord_cartesian(ylim = c(0,0.15)) +
+      labs(title = format_label, x = "Estimates (%)", y = "Density") +
+      theme_bw(base_size = 6) +
+      theme(
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor   = element_blank(),
+        legend.position = "bottom",
+        legend.key.height = unit(3, "mm"),
+        legend.text = element_text(size = 5),
+        axis.title.x = element_text(size = 6),
+        axis.title.y = element_text(size = 6),
+        axis.text.x  = element_text(size = 5),
+        axis.text.y  = element_text(size = 5),
+        strip.text   = element_text(size = 6, face = "bold")
+      )
+  }
   
+  plot_prob_overlay <- plot_overlay(human_df_prob, model_df_prob, ref_lines, "Probability Format")
+  plot_freq_overlay <- plot_overlay(human_df_freq, model_df_freq, ref_lines, "Frequency Format")
+  
+  final_plot <- plot_prob_overlay + plot_freq_overlay +
+    plot_layout(ncol = 2, guides = "collect") &
+    theme(legend.position = "bottom")
   
   message("--- Analysis for ", dataset_name, " complete. ---")
+  
   list(plot = final_plot, 
        posteriors_parameter = abc_out$post_draws, 
        posteriors_prediction = ppc_all,
        human_summary = final_human)
 }
 
-# -----------------------------------------------------------------------------
-# 9. Individual‑level Posterior vs. Observed Diagnostics
-# -----------------------------------------------------------------------------
+# ---- 7.2 Full Pipeline with Overlayed Histograms (7-Parameter MH Model) --
+#' Complete analysis pipeline for MH model variant
+#'
+#' @inheritParams run_analysis_pipeline_overlap
+#' @return Analysis results for MH model
 
-# The following helpers compute summary statistics per posterior draw, merge
-# them with the observed participant‑level statistics, and visualise the extent
-# to which the model reproduces individual variability.
-
-# 9.1 Metric aggregation + regression slopes
-# ── Summarise posterior metrics, regression slopes, and (optional) variance ──
-# ── Summarise posterior metrics, slopes, and (optional) posterior variance ──
-summarise_posterior <- function(
-    post_pred,
-    column          = "prediction",
-    group_vars      = c("sample", "format"),
-    predictors      = c("BR", "HR", "FAR"),
+run_analysis_pipeline_overlap_MH <- function(
+    dataset_name,
+    human_data,
+    sim_params,
+    simulations,
+    ppc_subject_id,
+    subject_col,
+    ref_points,
     calculate_variance = FALSE,
-    variance_column    = column,
-    var_group_vars     = c("sample", "format", "BR", "HR", "FAR"),
-    var_summary_vars   = c("sample", "format")
+    abc_tol = 0.01
 ) {
+  message("--- Running Analysis for: ", dataset_name, " ---")
   
-  # 1. metrics + slopes --------------------------------------------------------
-  dt <- data.table::as.data.table(post_pred)
-  
-  metrics <- compute_all_metrics(
-    df         = dt,
-    column     = column,
-    group_vars = group_vars
+  # Compute empirical summary statistics
+  human_sum <- compute_all_metrics(
+    df = human_data,
+    column = "response",
+    group_vars = c("format")
   )
-  
-  slopes  <- compute_SI_by(
-    dt         = dt,
-    group_vars = group_vars,
-    predictors = predictors,
-    column     = column
+  slope_int <- compute_SI_by(
+    dt = human_data,
+    group_vars = c("format"),
+    predictors = c("BR","HR","FAR"),
+    column = "response"
   )
+  final_human <- left_join(human_sum, slope_int, by = "format")
   
-  final_tbl <- dplyr::left_join(metrics, slopes, by = group_vars)
-  
-  # 2. posterior variance (on demand) -----------------------------------------
   if (calculate_variance) {
-    
-    var_tbl <- compute_variance_summary(
-      post_pred,
-      column       = variance_column,
-      group_vars   = var_group_vars,
-      summary_vars = var_summary_vars
+    var_summary <- compute_variance_summary(
+      human_data, column = "response",
+      group_vars = c("format","BR","HR","FAR"),
+      summary_vars = c("format")
     )
-    
-    join_keys <- intersect(names(final_tbl), names(var_tbl))
-    final_tbl <- dplyr::left_join(final_tbl, var_tbl, by = join_keys)
+    final_human <- left_join(final_human, var_summary, by = "format")
   }
   
-  final_tbl
-}
-
-
-# 9.2 Prepare long‑format table (Model + Observed)
-prepare_stats_long <- function(
-    posterior_all,
-    observed_df,
-    human_dt,
-    group_vars = c("sample", "format"),
-    id_var = NULL) {
+  # ABC posterior estimation for MH model
+  abc_out <- compute_abc_by_format_MH(
+    human_summary = final_human,
+    sim_params     = sim_params,
+    simulations    = simulations,
+    tol            = abc_tol
+  )
   
-  id_var <- id_var %||%
-    (c("subject_s", "subject") %>% intersect(names(observed_df)) %>% first())
-  if (is.na(id_var)) stop("ID column not found.", call. = FALSE)
+  # Generate posterior predictive samples
+  subject_filter <- rlang::expr(!!rlang::sym(subject_col) == ppc_subject_id)
+  target_data    <- filter(human_data, !!subject_filter)
   
+  ppc_prob <- generate_ppc_global_MH(abc_out$post_draws[["probability"]], target_data) %>%
+    mutate(format = "probability")
+  ppc_freq <- generate_ppc_global_MH(abc_out$post_draws[["frequency"]],   target_data) %>%
+    mutate(format = "frequency")
+  ppc_all  <- bind_rows(ppc_prob, ppc_freq)
   
-  indiv_obs <- observed_df |>
-    dplyr::select(-dplyr::all_of(id_var))
+  # Prepare visualization data
+  ref_lines <- get_reference_lines(human_data, ref_points)
   
-  dplyr::bind_rows(
-    dplyr::mutate(indiv_obs ,      type = "Observed"),
-    dplyr::mutate(posterior_all,  type = "Model")
-  ) |>
-    tidyr::pivot_longer(-c(type, dplyr::all_of(group_vars)),
-                        names_to = "stat", values_to = "value") |>
-    dplyr::select(-dplyr::all_of(group_vars))
-}
-
-
-# 9.3 Histogram‑overlap statistic
-compute_hist_overlap <- function(x, y, bins = 30) {
-  x <- x[is.finite(x)]
-  y <- y[is.finite(y)]
-  if (length(x) == 0 || length(y) == 0) return(NA_real_)
-  rng <- range(c(x, y), finite = TRUE)
-  if (diff(rng) == 0) return(1)         
+  ppc_clean_p <- clean_ppc(ppc_prob, ref_lines)
+  ppc_clean_f <- clean_ppc(ppc_freq, ref_lines)
+  vlines_all<-ref_lines
+  human_df_prob <- human_data %>% 
+    filter(format == "probability") %>%
+    mutate(condition = paste0("BR=",BR,", HR=",HR,", FAR=",FAR),
+           response_pct = response * 100)%>%
+    filter(condition %in% vlines_all$condition)
   
-  breaks <- seq(rng[1], rng[2], length.out = bins + 1)
+  human_df_freq <- human_data %>% 
+    filter(format == "frequency") %>%
+    mutate(condition = paste0("BR=",BR,", HR=",HR,", FAR=",FAR),
+           response_pct = response * 100)%>%
+    filter(condition %in% vlines_all$condition)
   
-  hx <- hist(x, breaks = breaks, plot = FALSE, right = FALSE)
-  hy <- hist(y, breaks = breaks, plot = FALSE, right = FALSE)
+  model_df_prob <- ppc_clean_p %>% 
+    mutate(response_pct = prediction * 100,
+           condition = paste0("BR=",BR,", HR=",HR,", FAR=",FAR))%>%
+    filter(condition %in% vlines_all$condition)
   
-  px <- hx$counts / sum(hx$counts)     
-  py <- hy$counts / sum(hy$counts)
+  model_df_freq <- ppc_clean_f  %>% 
+    mutate(response_pct = prediction * 100,
+           condition = paste0("BR=",BR,", HR=",HR,", FAR=",FAR))%>%
+    filter(condition %in% vlines_all$condition)
   
-  sum(pmin(px, py))
-}
-
-
-
-get_overlap_tbl <- function(stats_long, bins = 30) {
-  stats_long |>
-    dplyr::filter(!grepl("subject_s", stat)) |>
-    dplyr::group_by(stat) |>
-    tidyr::nest() |>
-    dplyr::mutate(
-      overlap = purrr::map_dbl(data, \(df) {
-        x <- df |> dplyr::filter(type == "Model")    |> dplyr::pull(value)
-        y <- df |> dplyr::filter(type == "Observed") |> dplyr::pull(value)
-        compute_hist_overlap(x, y, bins = bins)
-      })
-    ) |>
-    dplyr::select(stat, overlap) |>
-    dplyr::arrange(overlap) |>
-    data.table::as.data.table()
-}
-
-# -----------------------------------------------------------------------------
-# 10. Visualisation helpers for individual‑level diagnostics
-# -----------------------------------------------------------------------------
-
-plot_hist_overlap <- function(overlap_tbl) {
-  ggplot2::ggplot(
-    overlap_tbl,
-    ggplot2::aes(x = reorder(stat, overlap), y = overlap)
-  ) +
-    ggplot2::geom_segment(
-      ggplot2::aes(xend = stat, y = 0, yend = overlap),
-      colour = "grey60"
-    ) +
-    ggplot2::geom_point(size = 2, colour = "firebrick") +
-    ggplot2::coord_flip() +
-    ggplot2::labs(y = "Histogram overlap", x = NULL) +
-    ggplot2::theme_bw(base_size = 7)+
-    theme(
-      panel.grid.major.y = element_blank(), 
-      panel.grid.minor.y = element_blank()
+  # Create overlayed histogram plots
+  plot_overlay <- function(human_df, model_df, ref_lines, format_label) {
+    combined_df <- bind_rows(
+      mutate(human_df, type = "Human"),
+      mutate(model_df, type = "Model")
     )
-}
-
-plot_density_stats <- function(
-    stats_long,
-    dens_ncol   = 4) {
-  
-  ggplot2::ggplot(
-    stats_long,
-    ggplot2::aes(value, fill = type, colour = type)
-  ) +
-    ggplot2::geom_density(alpha = .3, adjust = 1.4) +
-    ggplot2::geom_rug(
-      data   = subset(stats_long, grepl("intercept_", stat) & abs(value) > 30),
-      sides  = "b", colour = "grey50", alpha = .5
-    ) +
-    ggplot2::facet_wrap(~ factor(stat), scales = "free", ncol = dens_ncol) +
-    ggplot2::scale_fill_manual(values = c(Model = "#1f78b4", Observed = "#fb9a99")) +
-    ggplot2::scale_colour_manual(values = c(Model = "#1f78b4", Observed = "#fb9a99")) +
-    ggplot2::theme_minimal(base_size = 8) +
-    ggplot2::labs(
-      x       = NULL,
-      y       = "Density",
-      caption = "Intercept panels trimmed to |x| < 30; dashed rug marks extreme values"
-    )
-}
-# -----------------------------------------------------------------------------
-# 11. Posterior predictive checks
-# -----------------------------------------------------------------------------
-
-calculate_ppp <- function(df, alpha = 0.05) {
-  df %>%
-    group_by(stat) %>%
-    summarise(
-      T_obs = value[type == "Observed"][1],
-      T_rep = list(value[type == "Model"]),
-      p_lower = mean(T_rep[[1]] <= T_obs),
-      p_upper = mean(T_rep[[1]] >= T_obs),
-      .groups = "drop" 
-    ) %>%
-    mutate(
-      ppp = 2 * pmin(p_lower, p_upper),
-      bad_fit = ppp < alpha,
-      direction = if_else(p_lower < p_upper, "over", "under") 
-    )
-}
-
-
-plot_ppp_summary <-function(ppp_df, alpha_threshold = 0.05) {
-  plot_data <- ppp_df %>%
-    arrange(ppp) %>%
-    mutate(stat = factor(stat, levels = stat))
-  ggplot(plot_data, aes(x = stat, y = ppp, colour = direction)) +
-    geom_segment(
-      aes(x = stat, xend = stat, y = 0, yend = ppp),
-      linewidth = 0.8 
-    ) +
     
-    geom_point(size = 2) +
-    geom_hline(
-      yintercept = alpha_threshold, 
-      linetype = "dashed", 
-      color = "black"
-    ) +
-    scale_colour_manual(
-      name = "Bias",
-      values = c("under" = "#d73027", "over" = "#4575b4")
-    ) +
-    coord_flip() +
-    labs(
-      y = "Posterior-predictive p-value",
-      x = NULL
-    ) +
-    theme_bw(base_size = 7) +
-    theme(
-      panel.grid.major.y = element_blank(), 
-      panel.grid.minor.y = element_blank()
-    )
+    ggplot() +
+      geom_histogram(data = combined_df,
+                     aes(x = response_pct, y = after_stat(density), fill = type, color = type),
+                     binwidth = 3, alpha = 0.7, position = "identity") +
+      geom_vline(data = ref_lines, aes(xintercept = value, colour = heuristic),
+                 linetype = "dashed", size = 0.5) +
+      scale_fill_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
+      scale_color_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
+      facet_wrap(~ condition, ncol = 1, scales = "free_y") +
+      add_okabe_color() +
+      coord_cartesian(ylim = c(0,0.2)) +
+      labs(title = format_label, x = "Estimates (%)", y = "Density") +
+      theme_bw(base_size = 10) +                
+      theme(
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor   = element_blank(),
+        legend.position    = "bottom",
+        legend.key.height  = unit(3, "mm"),
+        legend.text        = element_text(size = 7), 
+        axis.title.x       = element_text(size = 8), 
+        axis.title.y       = element_text(size = 8),  
+        axis.text.x        = element_text(size = 7), 
+        axis.text.y        = element_text(size = 7),  
+        strip.text         = element_text(size = 8, face = "bold")  
+      )
+  }
+  
+  plot_prob_overlay <- plot_overlay(human_df_prob, model_df_prob, ref_lines, "Probability Format")
+  plot_freq_overlay <- plot_overlay(human_df_freq, model_df_freq, ref_lines, "Frequency Format")
+  
+  final_plot <- plot_prob_overlay + plot_freq_overlay +
+    plot_layout(ncol = 2, guides = "collect") &
+    theme(legend.position = "bottom")
+  
+  message("--- Analysis for ", dataset_name, " complete. ---")
+  
+  list(plot = final_plot, 
+       posteriors_parameter = abc_out$post_draws, 
+       posteriors_prediction = ppc_all,
+       human_summary = final_human)
 }
+
+
+################################################################################
+# END OF MODULE
+################################################################################

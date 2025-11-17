@@ -71,7 +71,7 @@ load_clean_data <- function(path, type = c("experiment", "stengard", "sirota")) 
   
   if (type == "experiment") {
     # Load your own experimental data
-    readxl::read_excel(path) %>%
+    readr::read_csv(path) %>%
       transmute(
         subject, format, n_trial, rt,
         BR             = br,
@@ -210,7 +210,8 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
     theme_bw(base_size = 5) +
     theme(
       legend.position = if(include_legend) "bottom" else "none",
-      panel.grid.major.y = element_line(size = 0.3, colour = "grey85"),
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
       panel.grid.minor   = element_blank()
     )
   
@@ -233,7 +234,8 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
     theme_bw(base_size = 5) +
     theme(
       legend.position = "none",
-      panel.grid.major.y = element_line(size = 0.3, colour = "grey85"),
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
       panel.grid.minor   = element_blank()
     )
   
@@ -255,7 +257,8 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
     theme_bw(base_size = 5) +
     theme(
       legend.position = if(include_legend) "bottom" else "none",
-      panel.grid.major.y = element_line(size = 0.3, colour = "grey85"),
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_blank(),
       panel.grid.minor   = element_blank()
     )
   
@@ -265,35 +268,63 @@ plot_task_panel <- function(task_label, include_legend = FALSE) {
 }
 
 # Function: Plot participant mean response vs. true posterior
-plot_mean_vs_tp <- function(df, group_vars, color_var, legend_title = NULL, file_name = NULL) {
+plot_mean_vs_tp <- function(df, group_vars, color_var,
+                            legend_title = NULL,
+                            file_stub = NULL) {
+  
   summary_df <- df %>%
-    group_by(across(all_of(c(group_vars, "true_posterior")))) %>%
-    summarise(
+    dplyr::group_by(dplyr::across(dplyr::all_of(c(group_vars, "true_posterior")))) %>%
+    dplyr::summarise(
       mean_r = mean(response),
       sd_r   = sd(response),
-      n      = n(),
-      se     = sd_r / sqrt(n()),
-      .groups = 'drop'
+      n      = dplyr::n(),
+      se     = sd_r / sqrt(n),
+      .groups = "drop"
     )
   
   p <- ggplot(summary_df,
               aes(x = true_posterior, y = mean_r,
-                  color = .data[[color_var]],
-                  group = .data[[color_var]])) +
+                  colour = .data[[color_var]],
+                  group  = .data[[color_var]])) +
     geom_point(size = 1.2) +
     geom_errorbar(aes(ymin = mean_r - se, ymax = mean_r + se), width = 0.03) +
     geom_smooth(method = "lm", se = FALSE, fullrange = TRUE) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-    scale_color_manual(values = cb_palette) +
-    coord_cartesian(ylim = c(0, 1)) +
-    labs(x = "True Posterior", y = "Participant Response", color = legend_title) +
-    theme_minimal(base_size = 10) +
-    theme(legend.position = "bottom")
+    scale_colour_manual(values = cb_palette, name = legend_title) +
+    scale_x_continuous("True Posterior",
+                       limits = c(0, 1), breaks = seq(0, 1, .25)) +
+    scale_y_continuous("Participant Response",
+                       limits = c(0, 1), breaks = seq(0, 1, .25)) +
+    coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
+    theme_bw(base_size = 12) +
+    theme(
+      legend.position   = "bottom",
+      legend.key.height = unit(4, "mm"),
+      legend.text       = element_text(size = 10)
+    )
   
-  if (!is.null(file_name)) {
-    ggsave(file.path(plot_dir, file_name), plot = p,
-           width = plot_width, height = plot_height, dpi = default_dpi)
+  if (!is.null(file_stub)) {
+    dir.create(plot_dir_tiff, showWarnings = FALSE, recursive = TRUE)
+    dir.create(plot_dir_png,  showWarnings = FALSE, recursive = TRUE)
+
+    ggsave(
+      file.path(plot_dir_tiff, paste0(file_stub, ".tiff")),
+      plot  = p,
+      width = plot_width,
+      height = plot_height,
+      dpi   = 600
+    )
+
+    ggsave(
+      file.path(plot_dir_png, paste0(file_stub, ".png")),
+      plot  = p,
+      width = plot_width,
+      height = plot_height,
+      dpi   = 300
+    )
   }
+  
+  
   invisible(p)
 }
 
@@ -321,6 +352,130 @@ plot_paired_profile <- function(paired_obj, title, ylab, labels = c("Probability
       axis.text.y = element_text(size = 9)
     )
 }
+
+# ----- Variance -----
+plot_model_accuracy <- function(df, file_stub = NULL) {
+  df <- df %>%
+    mutate(model_clean = model %>%
+             str_replace("^H_NH$", "50%") %>% 
+             str_replace("^HO_NH$", "Rep") %>% 
+             str_replace("^FO_NH$", "FC") %>% 
+             str_remove("_NH$") %>%
+             str_replace("^BS_R$", "A_BS") %>%                     
+             str_replace("^B$", "Bayes") %>%                       
+             str_replace("^M_L$", "Hybrid_BS_MH") %>%              
+             str_replace("^MIN_BS_", "Hybrid_BS_") %>% 
+             str_replace("^Hybrid_BS_H$", "Hybrid_BS_50%")
+    )
+  
+  heuristic_families <- c("BO", "Rep", "FC", "JO", "LS", "50%", "MH")
+  
+  bs_row <- df %>% filter(model_clean == "BS")
+  bs_expanded <- do.call(rbind, lapply(heuristic_families, function(fam) {
+    bs_row %>%
+      mutate(
+        model_clean  = "BS",
+        family_group = fam,
+        model_type   = "Bayesian Sampler"
+      )
+  }))
+  
+  other_models <- df %>%
+    filter(model_clean != "BS") %>%
+    mutate(
+      family_group = case_when(
+        model_clean %in% c("BO", "Hybrid_BS_BO") ~ "BO",
+        model_clean %in% c("Rep", "Hybrid_BS_HO") ~ "Rep",
+        model_clean %in% c("FC", "Hybrid_BS_FO") ~ "FC",
+        model_clean %in% c("JO", "Hybrid_BS_JO") ~ "JO",
+        model_clean %in% c("LS", "Hybrid_BS_LS") ~ "LS",
+        model_clean %in% c("50%", "Hybrid_BS_50%") ~ "50%",
+        model_clean %in% c("MH", "Hybrid_BS_MH") ~ "MH",
+        model_clean == "Bayes" ~ "Bayes",
+        model_clean == "LA" ~ "LA",
+        model_clean == "AH" ~ "AH",
+        model_clean == "LE" ~ "LE",
+        model_clean == "A_BS" ~ "A_BS"
+      ),
+      model_type = case_when(
+        grepl("^Hybrid", model_clean) ~ "Heuristic-Anchored Bayesian Sampler",
+        grepl("^Bayes",  model_clean) ~ "Bayes",
+        grepl("^A_BS",   model_clean) ~ "Asymmetric Bayesian Sampler",
+        TRUE                           ~ "Heuristic"
+      )
+    )
+  
+  df_final <- bind_rows(other_models, bs_expanded) %>%
+    filter(model_clean != "A_BS") %>%
+    mutate(
+      family_group = factor(family_group, levels = c(
+        "BO", "Rep", "FC", "JO", "LS", "50%", "MH",
+        "LA", "AH", "LE", "Bayes"
+      )),
+      model_type = factor(
+        model_type,
+        levels = c("Heuristic", "Bayesian Sampler",
+                   "Heuristic-Anchored Bayesian Sampler", "Bayes")
+      )
+    )
+  
+  fill_cols <- c(
+    "Heuristic"                        = cb_palette[1],
+    "Bayesian Sampler"                = cb_palette[2],
+    "Heuristic-Anchored Bayesian Sampler" = cb_palette[3],
+    "Bayes"                           = cb_palette[4]
+  )
+  
+  p <- ggplot(df_final, aes(x = family_group, y = Accuracy, fill = model_type)) +
+    geom_bar(position = position_dodge(width = 0.7),
+             stat = "identity", width = 0.6) +
+    scale_fill_manual(values = fill_cols, name = NULL) +
+    scale_y_continuous(
+      "Proportion Accurate (< 3%)",
+      limits = c(0, 0.6), breaks = seq(0, 0.6, 0.1)
+    ) +
+    labs(
+      title = "Model Accuracy Comparison",
+      x = "Model"
+    ) +
+    theme_bw(base_size = 9) +               
+    theme(
+      plot.title   = element_text(size = 10, face = "bold", hjust = 0.5),
+      axis.title.x = element_text(size = 9),
+      axis.title.y = element_text(size = 9),
+      axis.text.x  = element_text(size = 8, angle = 45, hjust = 1),
+      axis.text.y  = element_text(size = 8),
+      legend.position   = "bottom",
+      legend.key.height = unit(3, "mm"),
+      legend.text       = element_text(size = 8)
+    )
+  
+  
+  if (!is.null(file_stub)) {
+    dir.create(plot_dir_tiff, showWarnings = FALSE, recursive = TRUE)
+    dir.create(plot_dir_png,  showWarnings = FALSE, recursive = TRUE)
+    
+    ggsave(
+      file.path(plot_dir_tiff, paste0(file_stub, ".tiff")),
+      plot  = p,
+      width = plot_width,
+      height = plot_height,
+      dpi   = 600
+    )
+    
+    ggsave(
+      file.path(plot_dir_png, paste0(file_stub, ".png")),
+      plot  = p,
+      width = plot_width,
+      height = plot_height,
+      dpi   = 300
+    )
+  }
+  
+  
+  invisible(p)
+}
+
 
 # ==================== Constants ================================
 # List of heuristics (used for plotting and extraction)

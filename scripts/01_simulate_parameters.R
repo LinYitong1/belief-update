@@ -149,7 +149,7 @@ run_simulations <- function(tt, n_iter = 50, seed = 123) {
 
 
 ## 4. Run simulation -----------------------------------------------
-parameter_dt <- run_simulations(tt, n_iter = 10)
+parameter_dt <- run_simulations(tt, n_iter = 10000)
 parameter_dt_s <- run_simulations(tt_s, n_iter = 10000)
 saveRDS(parameter_dt, "data/parameter_dt.rds")
 saveRDS(parameter_dt_s, "data/parameter_dt_s.rds")
