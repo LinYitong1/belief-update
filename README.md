@@ -112,16 +112,15 @@ source("scripts/00_stats_table.R")  # Generate tables
 
 ## Analysis Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `01_simulate_parameters.R` | Generate 50K prior samples |
-| `02_generate_predictions.R` | Compute model predictions |
-| `03_summary_stats.R` | Calculate ABC features |
-| `04_abcrf_individual_inference.R` | ABC-RF classification |
-| `05_posterior.R` | ABC parameter estimation (HAmix) |
-| `05_posterior_MH.R` | ABC-MH inference (MH model) |
-| `00_plot.R` | Generate all figures |
-| `00_stats_table.R` | Generate LaTeX tables |
+- `00_data_process.R`
+- `01_simulate_parameters.R`
+- `02_generate_predictions.R`
+- `03_summary_stats.R`
+- `04_abcrf_individual_inference.R`
+- `05_posterior.R`
+- `05_posterior_MH.R`
+- `00_plot.R`
+- `00_stats_table.R`
 
 ---
 
@@ -150,7 +149,7 @@ source("scripts/00_stats_table.R")  # Generate tables
 ## Author
 
 **Yitong Lin**  
-Contact: [your.email@domain.com]
+Contact: yitong.lin@warwick.ac.uk
 
 ---
 
