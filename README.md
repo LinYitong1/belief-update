@@ -51,7 +51,7 @@ pacman::p_load(
 ```r
 setwd("/path/to/belief-update/")
 
-# Complete workflow (8-10 hours)
+# Complete analysis workflow
 source("scripts/00_data_process.R")                 # Clean data
 source("scripts/01_simulate_parameters.R")          # Generate priors
 source("scripts/02_generate_predictions.R")         # Model predictions
@@ -112,18 +112,16 @@ source("scripts/00_stats_table.R")  # Generate tables
 
 ## Analysis Scripts
 
-| Script | Purpose | Runtime |
-|--------|---------|---------|
-| `01_simulate_parameters.R` | Generate 50K prior samples | ~30 min |
-| `02_generate_predictions.R` | Compute model predictions | ~2 hours |
-| `03_summary_stats.R` | Calculate ABC features | ~10 min |
-| `04_abcrf_individual_inference.R` | ABC-RF classification | ~1 hour |
-| `05_posterior.R` | ABC parameter estimation (HAmix) | ~2 hours |
-| `05_posterior_MH.R` | ABC-MH inference (MH model) | ~1 hour |
-| `00_plot.R` | Generate all figures | ~5 min |
-| `00_stats_table.R` | Generate LaTeX tables | ~2 min |
-
-**Total runtime**: Approximately 8-10 hours on an 8-core machine
+| Script | Purpose |
+|--------|---------|
+| `01_simulate_parameters.R` | Generate 50K prior samples |
+| `02_generate_predictions.R` | Compute model predictions |
+| `03_summary_stats.R` | Calculate ABC features |
+| `04_abcrf_individual_inference.R` | ABC-RF classification |
+| `05_posterior.R` | ABC parameter estimation (HAmix) |
+| `05_posterior_MH.R` | ABC-MH inference (MH model) |
+| `00_plot.R` | Generate all figures |
+| `00_stats_table.R` | Generate LaTeX tables |
 
 ---
 
