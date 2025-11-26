@@ -80,7 +80,6 @@ compute_SI_by <- function(dt, group_vars = c("model", "Iteration"),
   Reduce(function(x, y) left_join(x, y, by = group_vars), si_tables)
 }
 
-
 # ----- Variance -----
 compute_variance_summary <- function(dt, column = "predict", 
                                      group_vars = c("model", "Iteration", "BR", "HR", "FAR"), 
