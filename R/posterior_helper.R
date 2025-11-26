@@ -865,7 +865,7 @@ prepare_stats_long_subject_MH <- function(posterior_all,
   dplyr::bind_rows(observed_long, posterior_long)
 }
 
-# ---- 8.3 PPP by subject (复用已有 calculate_ppp) ---------------------------
+# ---- 8.3 PPP by subject ---------------------------
 compute_ppp_by_subject_MH <- function(posterior_summary,
                                       observed_df,
                                       subject_col = "subject",
@@ -971,8 +971,6 @@ run_abc_all_subjects_MH <- function(human_data,
 }
 
 # ---- 8.6 Full subject-level MH validation pipeline -------------------------
-# 和你 11-parameter 的 run_subject_level_validation 非常类似，
-# 只不过这里是 MH 模型 + 不算 overlap，只算 PPP。
 run_subject_level_MH_validation <- function(
     dataset_name,
     human_data,
