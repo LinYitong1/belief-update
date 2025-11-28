@@ -359,22 +359,18 @@ compute_hist_overlap <- function(x, y, bins = 30) {
 #' @param alpha  Threshold for flagging poor fit
 #' @return Table with PPP values and fit indicators per statistic
 
+# ppp<alpha/2 or ppp>1-a/pha/2
 calculate_ppp <- function(df, alpha = 0.05) {
   df %>%
     dplyr::group_by(stat) %>%
     dplyr::summarise(
       T_obs = unique(value[type == "Observed"]),
       ppp   = mean(value[type == "Model"] >= T_obs, na.rm = TRUE),
+      bad_fit = (ppp < alpha/2) | (ppp > 1 - alpha/2),
       .groups = "drop"
-    ) %>%
-    dplyr::mutate(
-      bad_fit   = ppp < alpha,
-      direction = dplyr::if_else(bad_fit, "under", "ok")
-    ) 
+    )
 }
 
-# ppp<alpha/2 or ppp>1-a/pha/2
-# 
 ################################################################################
 # 4. SUBJECT-LEVEL ABC AND PPP
 ################################################################################
@@ -639,8 +635,10 @@ run_subject_level_validation <- function(
       median_ppp   = median(ppp, na.rm = TRUE),
       q25_ppp      = quantile(ppp, 0.25, na.rm = TRUE),
       q75_ppp      = quantile(ppp, 0.75, na.rm = TRUE),
-      prop_extreme = mean(ppp < ppp_alpha, na.rm = TRUE)
+      prop_extreme = mean(bad_fit, na.rm = TRUE)
     )
+  
+  
   
   
   message("--- Done subject-level ABC & validation: ", dataset_name, " ---")
@@ -686,47 +684,6 @@ plot_param_population <- function(param_name, sim_params, post_subject_means) {
     theme_classic()
 }
 
-plot_human_vs_posterior_pooled <- function(
-    human_data,
-    post_pred_indiv,
-    binwidth = 0.05
-) {
-  human_all <- human_data %>%
-    dplyr::mutate(source = "Human")
-  
-  model_all <- post_pred_indiv %>%
-    dplyr::mutate(
-      source   = "Model",
-      response = prediction
-    )
-  
-  combined <- dplyr::bind_rows(
-    human_all %>% dplyr::select(response, source),
-    model_all %>% dplyr::select(response, source)
-  )
-  
-  ggplot(combined, aes(x = response, fill = source, color = source)) +
-    geom_histogram(
-      aes(y = after_stat(density)),
-      binwidth = binwidth,
-      alpha    = 0.6,
-      position = "identity"
-    ) +
-    scale_fill_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
-    scale_color_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
-    labs(
-      title = "Human vs model posterior predictive (pooled across subjects)",
-      x     = "Response / prediction",
-      y     = "Density",
-      fill  = "",
-      color = ""
-    ) +
-    theme_bw(base_size = 10) +
-    theme(
-      legend.position   = "bottom",
-      legend.key.height = unit(3, "mm")
-    )
-}
 
 get_reference_lines <- function(df, ref_points,
                                 heuristics = c("REP","BO","FC","JO","LS","50%","Bayes")) {
@@ -772,26 +729,26 @@ plot_overlay <- function(human_df, model_df, ref_lines, format_label) {
                    aes(x = response_pct, y = after_stat(density), fill = type, color = type),
                    binwidth = 3, alpha = 0.7, position = "identity") +
     geom_vline(data = ref_lines, aes(xintercept = value, colour = heuristic),
-               linetype = "dashed", size = 0.5) +
+               linetype = "dashed", size = 0.6) +
     scale_fill_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
     scale_color_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
     facet_wrap(~ condition, ncol = 1, scales = "free_y") +
     add_okabe_color() +
-    coord_cartesian(ylim = c(0,0.2)) +
+    coord_cartesian(ylim = c(0,0.15)) +
     labs(title = format_label, x = "Estimates (%)", y = "Density") +
-    theme_bw(base_size = 10) +                
+    theme_bw(base_size =7) +                
     theme(
       panel.grid.major.y = element_blank(),
       panel.grid.major.x = element_blank(),
       panel.grid.minor   = element_blank(),
       legend.position    = "bottom",
       legend.key.height  = unit(3, "mm"),
-      legend.text        = element_text(size = 7), 
-      axis.title.x       = element_text(size = 8), 
-      axis.title.y       = element_text(size = 8),  
-      axis.text.x        = element_text(size = 7), 
-      axis.text.y        = element_text(size = 7),  
-      strip.text         = element_text(size = 8, face = "bold")  
+      legend.text        = element_text(size = 6), 
+      axis.title.x       = element_text(size = 7), 
+      axis.title.y       = element_text(size = 7),  
+      axis.text.x        = element_text(size = 6), 
+      axis.text.y        = element_text(size = 6),  
+      strip.text         = element_text(size = 7, face = "bold")  
     )
 }
 
@@ -1035,8 +992,9 @@ run_subject_level_MH_validation <- function(
       median_ppp   = median(ppp, na.rm = TRUE),
       q25_ppp      = quantile(ppp, 0.25, na.rm = TRUE),
       q75_ppp      = quantile(ppp, 0.75, na.rm = TRUE),
-      prop_extreme = mean(ppp < ppp_alpha, na.rm = TRUE)
+      prop_extreme = mean(bad_fit, na.rm = TRUE)
     )
+  
   
   message("--- Done subject-level MH ABC & validation: ", dataset_name, " ---")
   
@@ -1049,6 +1007,157 @@ run_subject_level_MH_validation <- function(
     ppp_summary_overall = ppp_summary_overall
   )
 }
+################################################################################
+# 9. GROUP-LEVEL ABC BY FORMAT (FOR PARAMETER REPORTING)
+################################################################################
+
+# 9.1 11-parameter model: ABC by format (probability / frequency)
+compute_abc_by_format <- function(human_summary,
+                                  sim_params,
+                                  simulations,
+                                  tol = 0.05,
+                                  format_col = "format") {
+  human_summary <- tibble::as_tibble(human_summary)
+  sim_params    <- tibble::as_tibble(sim_params)
+  simulations   <- tibble::as_tibble(simulations)
+  
+  stopifnot(format_col %in% names(human_summary))
+  formats <- unique(human_summary[[format_col]])
+  
+  SUM_COLS_full <- setdiff(names(simulations), c("Iteration", "model"))
+  # only keep summary stats that exist in BOTH simulations and human_summary
+  SUM_COLS      <- intersect(SUM_COLS_full, names(human_summary))
+  
+  simulations_sub <- simulations[, c("Iteration", "model", SUM_COLS), drop = FALSE]
+  
+  abc_res    <- setNames(vector("list", length(formats)), formats)
+  post_draws <- setNames(vector("list", length(formats)), formats)
+  
+  for (fmt in formats) {
+    obs_stats <- human_summary %>%
+      dplyr::filter(.data[[format_col]] == fmt) %>%
+      dplyr::select(dplyr::all_of(SUM_COLS)) %>%
+      unlist(use.names = FALSE)
+    
+    abc_obj <- abc_posterior(obs_stats, sim_params, simulations_sub, tol)
+    draws   <- as.data.frame(abc_obj$unadj.values)
+    draws[[format_col]] <- fmt  
+    
+    abc_res[[fmt]]    <- abc_obj
+    post_draws[[fmt]] <- draws
+  }
+  
+  list(abc_res = abc_res, post_draws = post_draws, tol = tol)
+}
+
+# 9.2 MH model: ABC by format (7 parameters)
+compute_abc_by_format_MH <- function(human_summary,
+                                     sim_params,
+                                     simulations,
+                                     tol = 0.05,
+                                     format_col = "format") {
+  human_summary <- tibble::as_tibble(human_summary)
+  sim_params    <- tibble::as_tibble(sim_params)
+  simulations   <- tibble::as_tibble(simulations)
+  
+  stopifnot(format_col %in% names(human_summary))
+  formats <- unique(human_summary[[format_col]])
+  
+  SUM_COLS_full <- setdiff(names(simulations), c("Iteration", "model"))
+  SUM_COLS      <- intersect(SUM_COLS_full, names(human_summary))
+  
+  simulations_sub <- simulations[, c("Iteration", "model", SUM_COLS), drop = FALSE]
+  
+  abc_res    <- setNames(vector("list", length(formats)), formats)
+  post_draws <- setNames(vector("list", length(formats)), formats)
+  
+  for (fmt in formats) {
+    obs_stats <- human_summary %>%
+      dplyr::filter(.data[[format_col]] == fmt) %>%
+      dplyr::select(dplyr::all_of(SUM_COLS)) %>%
+      unlist(use.names = FALSE)
+    
+    abc_obj <- abc_posterior_MH(obs_stats, sim_params, simulations_sub, tol)
+    draws   <- as.data.frame(abc_obj$unadj.values)
+    draws[[format_col]] <- fmt
+    
+    abc_res[[fmt]]    <- abc_obj
+    post_draws[[fmt]] <- draws
+  }
+  
+  list(abc_res = abc_res, post_draws = post_draws, tol = tol)
+}
+
+# 9.3 helper: turn list of draws into a nice parameter table
+summarise_group_params <- function(post_draws_list, id_col = "format", param_cols) {
+  post_draws <- dplyr::bind_rows(post_draws_list, .id = id_col)
+  
+  post_draws %>%
+    dplyr::group_by(.data[[id_col]]) %>%
+    dplyr::summarise(
+      dplyr::across(all_of(param_cols), median, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
+plot_prior_vs_posterior_group <- function(param_name,
+                                          sim_params,
+                                          abc_fmt,
+                                          x_label = NULL,
+                                          title   = NULL) {
+  if (is.null(x_label)) x_label <- param_name
+  
+  # 1. prior from simulations
+  prior_vals <- sim_params[[param_name]]
+  
+  # 2. posterior draws by format
+  post_freq <- abc_fmt$post_draws[["frequency"]][[param_name]]
+  post_prob <- abc_fmt$post_draws[["probability"]][[param_name]]
+  
+  df <- tibble::tibble(
+    value  = c(prior_vals, post_freq, post_prob),
+    source = factor(
+      c(rep("Prior",              length(prior_vals)),
+        rep("Posterior (Freq.)",  length(post_freq)),
+        rep("Posterior (Prob.)",  length(post_prob))),
+      levels = c("Prior", "Posterior (Freq.)", "Posterior (Prob.)")
+    )
+  )
+  
+  ## -------- smoothing setup --------
+  # which params are discrete (like sample size)
+  discrete_params <- c("N9", "Sample_Size", "sample_size")
+  is_discrete     <- param_name %in% discrete_params
+  
+  # add a little jitter for discrete ones, nothing for continuous
+  if (is_discrete) {
+    set.seed(123)  # for reproducibility, optional
+    df <- df %>%
+      dplyr::mutate(
+        value = value + rnorm(dplyr::n(), mean = 0, sd = 0.3),  # 控制平滑程度
+        value = pmax(value, 0)   # sample size 不要变成负数
+      )
+    density_adjust <- 1.5        # 更平滑一点
+  } else {
+    density_adjust <- 1          # 默认平滑
+  }
+  ## ---------------------------------
+  
+  ggplot(df, aes(x = value, color = source)) +
+    geom_density(size = 0.6, adjust = density_adjust) +
+    scale_color_manual(values = c(
+      "Prior"              = "black",
+      "Posterior (Freq.)"  = "#D55E00",
+      "Posterior (Prob.)"  = "#0072B2"
+    )) +
+    labs(
+      title = title,
+      x     = x_label,
+      y     = "Density",
+      color = ""
+    ) +
+    theme_classic()
+}
+
 
 ################################################################################
 # END OF MODULE

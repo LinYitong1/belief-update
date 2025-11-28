@@ -96,22 +96,22 @@ ppp_summary_s_MH      <- stengard_subject_MH_results$ppp_summary_overall
 print(ppp_summary_s_MH)
 #n_total median_ppp q25_ppp q75_ppp prop_extreme
 #<int>   <dbl>      <dbl>   <dbl>      <dbl>
-#7826      0.548   0.146   0.858        0.174
+#7826      0.546   0.146   0.856        0.276
 
-
+alpha<-0.05
 # ---- 3.2 PPP distribution plot (Stengard, individual-level) ----------------
-ppp_hist_s_MH <- ggplot(ppp_by_subject_s_MH, aes(x = ppp, fill = bad_fit)) +
+ppp_hist_s_MH <-ggplot(ppp_by_subject_s_MH, aes(x = ppp)) +
   geom_histogram(
     bins     = 30,
     color    = "white",
+    fill = "#3C5488FF",
     alpha    = 0.9,
     position = "identity"
   ) +
-  scale_fill_manual(
-    values = c(`TRUE` = "#F39B7FFF", `FALSE` = "#3C5488FF"),
-    labels = c(`TRUE` = "PPP < .05 (bad fit)", `FALSE` = "PPP ≥ .05")
+  geom_vline(
+    xintercept = c(alpha/2, 1 - alpha/2),
+    linetype   = "dashed"
   ) +
-  geom_vline(xintercept = 0.05, linetype = "dashed") +
   coord_cartesian(xlim = c(0, 1)) +
   labs(
     title = "PPP distribution (Stengard, individual level)",
@@ -120,90 +120,14 @@ ppp_hist_s_MH <- ggplot(ppp_by_subject_s_MH, aes(x = ppp, fill = bad_fit)) +
     fill  = ""
   ) +
   theme_classic(base_size = 10)
+  
+
 
 ggsave(file.path(plot_dir_tiff, "PPP_hist_Stengard_indiv_MH.tiff"), ppp_hist_s_MH,
        width = 6, height = 4, dpi = 600)
 ggsave(file.path(plot_dir_png,  "PPP_hist_Stengard_indiv_MH.png"),  ppp_hist_s_MH,
        width = 6, height = 4, dpi = 300)
-
-# ---- 3.3 Population-level prior vs posterior (subject means, Stengard) -----
-# Combine all posterior draws per subject and compute posterior mean per subject
-post_draws_s_MH <- data.table::rbindlist(
-  abc_indiv_s_MH$abc_out$post_draws,
-  use.names = TRUE,
-  fill      = TRUE
-)
-
-post_subject_means_s_MH <- post_draws_s_MH %>%
-  dplyr::group_by(subject) %>%
-  dplyr::summarise(
-    dplyr::across(all_of(all_params), ~ mean(.x, na.rm = TRUE)),
-    .groups = "drop"
-  )
-
-# Plot prior vs posterior (distribution of subject-level posterior means)
-plot_list_pop_s_MH <- lapply(all_params, function(param) {
-  plot_param_population(
-    param_name         = param,
-    sim_params         = parameter_dt_s,
-    post_subject_means = post_subject_means_s_MH
-  ) +
-    labs(x = label_map[[param]])
-})
-
-
-final_plot_pop_s_MH <- wrap_plots(plot_list_pop_s_MH, ncol = 3, guides = "collect") &
-  theme(legend.position = "bottom")
-
-ggsave(file.path(plot_dir_tiff, "Prior_vs_Posterior_Stengard_population_MH.tiff"),
-       final_plot_pop_s_MH, width = 8, height = 8, dpi = 600)
-ggsave(file.path(plot_dir_png,  "Prior_vs_Posterior_Stengard_population_MH.png"),
-       final_plot_pop_s_MH, width = 8, height = 8, dpi = 300)
-
 # ---- 3.4 Pooled human vs posterior prediction (Stengard) -------------------
-plot_overlay <- function(human_df, model_df, ref_lines, format_label) {
-  combined_df <- bind_rows(
-    mutate(human_df, type = "Human"),
-    mutate(model_df, type = "Model")
-  )
-  
-  ggplot() +
-    geom_histogram(data = combined_df,
-                   aes(x = response_pct, y = after_stat(density), fill = type, color = type),
-                   binwidth = 3, alpha = 0.7, position = "identity") +
-    geom_vline(data = ref_lines, aes(xintercept = value, colour = heuristic),
-               linetype = "dashed", size = 0.5) +
-    scale_fill_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
-    scale_color_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
-    facet_wrap(~ condition, ncol = 1, scales = "free_y") +
-    add_okabe_color() +
-    coord_cartesian(ylim = c(0,0.2)) +
-    labs(title = format_label, x = "Estimates (%)", y = "Density") +
-    theme_bw(base_size = 10) +                
-    theme(
-      panel.grid.major.y = element_blank(),
-      panel.grid.major.x = element_blank(),
-      panel.grid.minor   = element_blank(),
-      legend.position    = "bottom",
-      legend.key.height  = unit(3, "mm"),
-      legend.text        = element_text(size = 7), 
-      axis.title.x       = element_text(size = 8), 
-      axis.title.y       = element_text(size = 8),  
-      axis.text.x        = element_text(size = 7), 
-      axis.text.y        = element_text(size = 7),  
-      strip.text         = element_text(size = 8, face = "bold")  
-    )
-}
-pooled_ppc_plot_s_MH <- plot_human_vs_posterior_pooled(
-  human_data      = human_dt_s,
-  post_pred_indiv = post_pred_indiv_s_MH,
-  binwidth        = 0.05
-)
-
-ggsave(file.path(plot_dir_tiff, "Pooled_PPC_Stengard.tiff"),
-       pooled_ppc_plot_s_MH, width = 6, height = 4, dpi = 600)
-ggsave(file.path(plot_dir_png,  "Pooled_PPC_Stengard.png"),
-       pooled_ppc_plot_s_MH, width = 6, height = 4, dpi = 300)
 
 ref_points_s <- tibble(
   BR  = c(0.1, 0.7, 0.9), 
@@ -269,6 +193,62 @@ ggsave(file.path(plot_dir_tiff, "PPC_Stengard_MH.tiff"),
 ggsave(file.path(plot_dir_png,  "PPC_Stengard_MH.png"),
        final_plot_s_MH, width = 6, height = 4, dpi = 300)
 
+
+################################################################################
+# 5. Group Level Posterior 
+################################################################################
+human_sum_fmt_s_MH  <- compute_all_metrics(
+  df         = human_dt_s,   # your S dataset
+  column     = "response",
+  group_vars = c("format")
+)
+
+slope_int_fmt_s_MH  <- compute_SI_by(
+  dt         = human_dt_s,
+  group_vars = c("format"),
+  predictors = c("BR", "HR", "FAR"),
+  column     = "response"
+)
+
+human_summary_fmt_s_MH  <- human_sum_fmt_s_MH  %>%
+  dplyr::left_join(slope_int_fmt_s_MH,   by = "format") 
+
+
+# 2. Run ABC by format
+abc_group_s_MH  <- compute_abc_by_format_MH(
+  human_summary = human_summary_fmt_s_MH ,
+  sim_params    = parameter_dt_s,
+  simulations   = simulations_s_MH ,
+  tol           = 0.05
+)
+
+posterior_means_s_MH  <- lapply(names(abc_group_s_MH $post_draws), function(fmt) {
+  abc_group_s_MH $post_draws[[fmt]] %>%
+    dplyr::summarise(dplyr::across(all_of(all_params), ~ mean(.x, na.rm = TRUE))) %>%
+    dplyr::mutate(format = fmt)
+}) %>%
+  dplyr::bind_rows()
+#      p7_1      p7_2      p7_3      p7_4      p7_5      p7_6      p7_7      format
+#1  0.1518931 0.1496845 0.1326903 0.1218902 0.1127533 0.1640404 0.1670487   frequency
+#20.1683713 0.1456248 0.1169706 0.1343552 0.1179140 0.1315043 0.1852600 probability
+
+plot_list_group_s_MH  <- lapply(all_params, function(param) {
+  plot_prior_vs_posterior_group(
+    param_name = param,
+    sim_params = parameter_dt_s,
+    abc_fmt    = abc_group_s_MH ,
+    x_label    = label_map[[param]]
+  )
+})
+
+final_plot_group_s_MH  <- patchwork::wrap_plots(plot_list_group_s_MH , ncol = 3, guides = "collect") &
+  theme(legend.position = "bottom")
+
+
+ggsave(file.path(plot_dir_tiff, "Prior_vs_Posterior_Stengard_population_MH.tiff"),
+       final_plot_group_s_MH, width = 8, height = 8, dpi = 600)
+ggsave(file.path(plot_dir_png,  "Prior_vs_Posterior_Stengard_population_MH.png"),
+       final_plot_group_s_MH, width = 8, height = 8, dpi = 300)
 
 ################################################################################
 # END OF SCRIPT
