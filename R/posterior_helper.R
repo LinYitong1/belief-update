@@ -364,12 +364,18 @@ calculate_ppp <- function(df, alpha = 0.05) {
   df %>%
     dplyr::group_by(stat) %>%
     dplyr::summarise(
-      T_obs = unique(value[type == "Observed"]),
-      ppp   = mean(value[type == "Model"] >= T_obs, na.rm = TRUE),
-      bad_fit = (ppp < alpha/2) | (ppp > 1 - alpha/2),
+      # observed statistic
+      T_obs  = unique(value[type == "Observed"]),
+      # relative rank of T_obs in posterior predictive distribution
+      rr_obs = mean(value[type == "Model"] >= T_obs, na.rm = TRUE),
+      # transform to two-sided p-value
+      ppp    = 1 - 2 * abs(rr_obs - 0.5),
+      # poor fit if p-value < alpha
+      bad_fit = ppp < alpha,
       .groups = "drop"
     )
 }
+
 
 ################################################################################
 # 4. SUBJECT-LEVEL ABC AND PPP
@@ -734,7 +740,7 @@ plot_overlay <- function(human_df, model_df, ref_lines, format_label) {
     scale_color_manual(values = c("Human" = "#3c5488", "Model" = "#f39b7f")) +
     facet_wrap(~ condition, ncol = 1, scales = "free_y") +
     add_okabe_color() +
-    coord_cartesian(ylim = c(0,0.15)) +
+    coord_cartesian(ylim = c(0,0.18)) +
     labs(title = format_label, x = "Estimates (%)", y = "Density") +
     theme_bw(base_size =7) +                
     theme(

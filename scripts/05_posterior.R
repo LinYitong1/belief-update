@@ -139,12 +139,6 @@ stats_long_indiv_s <- stengard_subject_results$stats_long_indiv
 ppp_by_subject_s   <- stengard_subject_results$ppp_by_subject
 ppp_summary_s      <- stengard_subject_results$ppp_summary_overall
 
-print(ppp_summary_s)
-#n_total median_ppp q25_ppp q75_ppp prop_extreme
-#<int>   <dbl>      <dbl>   <dbl>      <dbl>
-#7826       0.57   0.226   0.862       0.181
-
-
 # ---- 3.2 PPP distribution plot (Stengard, individual-level) ----------------
 alpha <- 0.05
 
@@ -152,20 +146,19 @@ ppp_hist_s <- ggplot(ppp_by_subject_s, aes(x = ppp)) +
   geom_histogram(
     bins     = 30,
     color    = "white",
-    fill = "#3C5488FF",
+    fill     = "#3C5488FF",
     alpha    = 0.9,
     position = "identity"
   ) +
   geom_vline(
-    xintercept = c(alpha/2, 1 - alpha/2),
+    xintercept = alpha,
     linetype   = "dashed"
   ) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(
-    title = "PPP distribution (Stengard, individual level)",
+    title = "PPP distribution (Stengard, individual level, MH)",
     x     = "Posterior predictive p-value (PPP)",
-    y     = "Count",
-    fill  = ""
+    y     = "Count"
   ) +
   theme_classic(base_size = 10)
 
@@ -240,9 +233,9 @@ final_plot_s <- plot_prob_overlay_s + plot_freq_overlay_s +
 
 final_plot_s
 
-ggsave(file.path(plot_dir_tiff, "PPC_Stengard.tiff"),
+ggsave(file.path(plot_dir_tiff, "Figure_8.tiff"),
        final_plot_s, width = 6, height = 4, dpi = 600)
-ggsave(file.path(plot_dir_png,  "PPC_Stengard.png"),
+ggsave(file.path(plot_dir_png,  "Figure_8.png"),
        final_plot_s, width = 6, height = 4, dpi = 300)
 
 
@@ -276,7 +269,7 @@ ppp_summary_exp      <- experimental_subject_results$ppp_summary_overall
 print(ppp_summary_exp)
 # n_total median_ppp q25_ppp q75_ppp prop_extreme(two side)
 # <int>      <dbl>   <dbl>   <dbl>        <dbl>
-# 7080      0.596   0.228   0.926        0.268
+# 7080      0.276  0.0400   0.628        0.270
 
 # ---- 4.2 PPP distribution plot (Experimental, individual-level) ------------
 ppp_hist_exp <-ggplot(ppp_by_subject_exp, aes(x = ppp)) +
@@ -288,7 +281,7 @@ ppp_hist_exp <-ggplot(ppp_by_subject_exp, aes(x = ppp)) +
     position = "identity"
   ) +
   geom_vline(
-    xintercept = c(alpha/2, 1 - alpha/2),
+    xintercept = alpha,
     linetype   = "dashed"
   ) +
   coord_cartesian(xlim = c(0, 1)) +
@@ -380,9 +373,9 @@ final_plot <- plot_prob_overlay + plot_freq_overlay +
 
 final_plot
 
-ggsave(file.path(plot_dir_tiff, "PPC_Experimental.tiff"),
+ggsave(file.path(plot_dir_tiff, "Figure_15.tiff"),
        final_plot, width = 6, height = 4, dpi = 600)
-ggsave(file.path(plot_dir_png,  "PPC_Experimental.png"),
+ggsave(file.path(plot_dir_png,  "Figure_15.png"),
        final_plot, width = 6, height = 4, dpi = 300)
 
 
@@ -430,9 +423,7 @@ posterior_means <- lapply(names(abc_group$post_draws), function(fmt) {
 }) %>%
   dplyr::bind_rows()
 
-#      p8_1      p8_2      p8_3       q_1       q_2       q_3       q_4       q_5       q_6    N9        v9      format
-#1 0.2584371 0.3745074 0.3670555 0.1649831 0.2405736 0.1427853 0.1433336 0.1559266 0.1523978 4.632 0.7904572 probability
-#2 0.4287978 0.2647282 0.3064740 0.1919803 0.1648246 0.1372889 0.1994717 0.1581302 0.1483050 5.816 0.6251510   frequency
+
 
 plot_list_group_exp <- lapply(all_params, function(param) {
   plot_prior_vs_posterior_group(
@@ -446,9 +437,9 @@ plot_list_group_exp <- lapply(all_params, function(param) {
 final_plot_group_exp <- patchwork::wrap_plots(plot_list_group_exp, ncol = 3, guides = "collect") &
   theme(legend.position = "bottom")
 
-ggsave(file.path(plot_dir_tiff, "Prior_vs_Posterior_Experimental_population.tiff"),
+ggsave(file.path(plot_dir_tiff, "Appendix_E4.tiff"),
        final_plot_group_exp, width = 8, height = 8, dpi = 600)
-ggsave(file.path(plot_dir_png,  "Prior_vs_Posterior_Experimental_population.png"),
+ggsave(file.path(plot_dir_png,  "Appendix_E4.png"),
        final_plot_group_exp, width = 8, height = 8, dpi = 300)
 
 # 1. Compute human summary by format
@@ -483,11 +474,9 @@ posterior_means_s <- lapply(names(abc_group_s$post_draws), function(fmt) {
     dplyr::mutate(format = fmt)
 }) %>%
   dplyr::bind_rows()
-#     p8_1      p8_2      p8_3       q_1       q_2       q_3       q_4       q_5       q_6    N9        v9      format
-#1 0.2734783 0.3525548 0.3739673 0.1601951 0.1653180 0.1690286 0.1663143 0.1557877 0.1833566 5.078 0.6794729   frequency
-#2 0.2396405 0.4033169 0.3570426 0.1677990 0.1648174 0.1469340 0.1613092 0.1671601 0.1919803 5.236 0.7450428 probability
+
 plot_list_group_s <- lapply(all_params, function(param) {
-  plot_prior_vs_posterior_param (
+  plot_prior_vs_posterior_group (
     param_name = param,
     sim_params = parameter_dt_s,
     abc_fmt    =abc_group_s,
@@ -506,11 +495,10 @@ plot_list_group_s <- lapply(all_params, function(param) {
 final_plot_group_s <- patchwork::wrap_plots(plot_list_group_s, ncol = 3, guides = "collect") &
   theme(legend.position = "bottom")
 
-ggsave(file.path(plot_dir_tiff, "Prior_vs_Posterior_Stengard_population.tiff"),
+ggsave(file.path(plot_dir_tiff, "Appendix_E2.tiff"),
        final_plot_group_s, width = 8, height = 8, dpi = 600)
-ggsave(file.path(plot_dir_png,  "Prior_vs_Posterior_Stengard_population.png"),
+ggsave(file.path(plot_dir_png,  "Appendix_E2.png"),
        final_plot_group_s, width = 8, height = 8, dpi = 300)
-
 
 ################################################################################
 # END OF SCRIPT

@@ -420,10 +420,10 @@ plot_model_accuracy <- function(df, file_stub = NULL) {
     )
   
   fill_cols <- c(
-    "Heuristic"                        = cb_palette[1],
-    "Bayesian Sampler"                = cb_palette[2],
-    "Heuristic-Anchored Bayesian Sampler" = cb_palette[3],
-    "Bayes"                           = cb_palette[4]
+    "Heuristic"                          = "#4E79A7",  # 深一点的蓝
+    "Bayesian Sampler"                   = "#F28E2B",  # 橙
+    "Heuristic-Anchored Bayesian Sampler"= "#59A14F",  # 绿（HABS）
+    "Bayes"                              = "#E15759"   # 红
   )
   
   p <- ggplot(df_final, aes(x = family_group, y = Accuracy, fill = model_type)) +

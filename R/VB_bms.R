@@ -318,7 +318,7 @@ plot_two_stage_bms <- function(res,
       guide  = "none"
     ) +
     scale_x_continuous(
-      limits = c(0, 0.80),
+      limits = c(0, 0.85),
       breaks = seq(0, 0.80, by = 0.20),
       labels = scales::percent_format(accuracy = 1),
       expand = c(0, 0.005),
