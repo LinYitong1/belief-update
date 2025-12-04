@@ -52,25 +52,14 @@ setwd("/path/to/belief-update/")
 
 # Complete analysis workflow
 source("scripts/00_data_process.R")                 # Clean data
+source("scripts/00_plot.R")                         # All figures
+source("scripts/00_stats_table.R")                  # All tables
 source("scripts/01_simulate_parameters.R")          # Generate priors
 source("scripts/02_generate_predictions.R")         # Model predictions
 source("scripts/03_summary_stats.R")                # Summary statistics
 source("scripts/04_abcrf_individual_inference.R")   # ABC-RF Individual Model Fitting
 source("scripts/05_posterior.R")                    # Posterior Check
 source("scripts/05_posterior_MH.R")                 # Posterior Check
-
-# Generate outputs
-source("scripts/00_plot.R")                         # Generate all figures
-source("scripts/00_stats_table.R")                  # Generate all tables
-```
-
-### 3. Quick Results (Pre-computed)
-
-If `.rds` files exist in `data/`, skip steps 1-7 and directly generate outputs:
-
-```r
-source("scripts/00_plot.R")         # Generate figures
-source("scripts/00_stats_table.R")  # Generate tables
 ```
 
 ---
