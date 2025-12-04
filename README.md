@@ -98,17 +98,6 @@ source("scripts/05_posterior_MH.R")                 # Posterior Check
 
 ---
 
-## Analysis Scripts
-
-- `00_data_process.R`
-- `01_simulate_parameters.R`
-- `02_generate_predictions.R`
-- `03_summary_stats.R`
-- `04_abcrf_individual_inference.R`
-- `05_posterior.R`
-- `05_posterior_MH.R`
-- `00_plot.R`
-- `00_stats_table.R`
 
 ---
 
@@ -153,13 +142,8 @@ Contact: yitong.lin@warwick.ac.uk
 
 ```r
 # In scripts, modify:
-n_cores <- detectCores() - 2  # Use fewer cores
+n_cores <- detectCores() - 2  
 ```
-
-### Slow Performance
-
-**Problem**: Analysis pipeline takes excessively long  
-**Solution**: Use pre-computed `.rds` files from the `data/` directory
 
 ### Missing Package Dependencies
 
@@ -185,15 +169,3 @@ git add .gitattributes
 
 ---
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-<div align="center">
-
-**Belief Updating Project**  
-Computational Cognitive Science Laboratory
-
-</div>
