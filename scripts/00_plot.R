@@ -231,4 +231,25 @@ ggsave(file.path(plot_dir_png, "Apendix_D.png"), combined,
 # ========= Appendix E2: Posterior distributions of HM_Mixture model parameters (Stengard).=========
 # ========= Appendix E3: Posterior distributions of HM_Mixture model parameters (Expeirment).=========
 
+# ========= Appendix F: Posterior predictive p-value distributions=========
+install.packages("magick")
+library(cowplot)
+library(magick)
+p_s_mh <- ggdraw() + draw_image("fig/png/PPP_hist_Stengard_indiv_MH.png")
+p_s_hybrid <- ggdraw() + draw_image("fig/png/PPP_hist_Stengard_indiv.png")
+p_e_mh <- ggdraw() + draw_image("fig/png/PPP_hist_exp_indiv_MH.png")
+p_e_hybrid<- ggdraw() + draw_image("fig/png/PPP_hist_Experimental_indiv.png")
+
+ppp_combined <- plot_grid(
+  p_s_mh,p_s_hybrid,
+  p_e_mh, p_e_hybrid,
+  ncol = 2,
+  labels = c("a", "b", "c", "d")  
+)
+
+ggsave(file.path(plot_dir_tiff, "Apendix_F.tiff"),ppp_combined,
+       width = plot_width, height = plot_height, dpi = 600)
+ggsave(file.path(plot_dir_png, "Apendix_F.png"), ppp_combined,
+       width = plot_width, height = plot_height, dpi = 300)
+
 # ======================== End of Script ============================

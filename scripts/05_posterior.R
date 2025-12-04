@@ -156,7 +156,7 @@ ppp_hist_s <- ggplot(ppp_by_subject_s, aes(x = ppp)) +
   ) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(
-    title = "PPP distribution (Stengard, individual level, MH)",
+    title = "B",
     x     = "Posterior predictive p-value (PPP)",
     y     = "Count"
   ) +
@@ -286,7 +286,7 @@ ppp_hist_exp <-ggplot(ppp_by_subject_exp, aes(x = ppp)) +
   ) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(
-    title = "PPP distribution (Experimental, individual level)",
+    title = "DS",
     x     = "Posterior predictive p-value (PPP)",
     y     = "Count",
     fill  = ""
@@ -444,7 +444,7 @@ ggsave(file.path(plot_dir_png,  "Appendix_E4.png"),
 
 # 1. Compute human summary by format
 human_sum_fmt_s <- compute_all_metrics(
-  df         = human_dt_s,   # your S dataset
+  df         = human_dt_s,  
   column     = "response",
   group_vars = c("format")
 )

@@ -1139,12 +1139,12 @@ plot_prior_vs_posterior_group <- function(param_name,
     set.seed(123)  # for reproducibility, optional
     df <- df %>%
       dplyr::mutate(
-        value = value + rnorm(dplyr::n(), mean = 0, sd = 0.3),  # 控制平滑程度
-        value = pmax(value, 0)   # sample size 不要变成负数
+        value = value + rnorm(dplyr::n(), mean = 0, sd = 0.3), 
+        value = pmax(value, 0)   
       )
-    density_adjust <- 1.5        # 更平滑一点
+    density_adjust <- 1.5       
   } else {
-    density_adjust <- 1          # 默认平滑
+    density_adjust <- 1         
   }
   ## ---------------------------------
   

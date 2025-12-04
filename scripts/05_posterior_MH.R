@@ -169,7 +169,7 @@ ppp_hist_s_MH <- ggplot(ppp_by_subject_s_MH, aes(x = ppp)) +
   ) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(
-    title = "PPP distribution (Stengard, individual level, MH)",
+    title = "A",
     x     = "Posterior predictive p-value (PPP)",
     y     = "Count"
   ) +
@@ -341,7 +341,7 @@ ppp_hist_exp_MH <- ggplot(ppp_by_subject_exp_MH, aes(x = ppp)) +
   ) +
   coord_cartesian(xlim = c(0, 1)) +
   labs(
-    title = "PPP distribution (Experiment, individual level, MH)",
+    title = "B",
     x     = "Posterior predictive p-value (PPP)",
     y     = "Count"
   ) +
