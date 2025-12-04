@@ -1,10 +1,5 @@
 # Belief Updating Project
 
-> Computational modeling of human belief updating using Approximate Bayesian Computation and Bayesian Model Selection
-
-[![R](https://img.shields.io/badge/R-%E2%89%A54.0-blue.svg)](https://www.r-project.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
 ---
 
 ## Overview
