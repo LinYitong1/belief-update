@@ -29,7 +29,6 @@ belief-update/
 ├── R/                 # Model definitions and helper functions
 ├── scripts/           # Analysis pipeline (run in order)
 ├── fig/               # Generated figures (TIFF, PNG)
-└── Table/             # LaTeX tables
 ```
 
 ---
