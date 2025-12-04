@@ -31,3 +31,4 @@ renv.lock
 # System files
 .DS_Store
 Thumbs.db
+data/.DS_Store
