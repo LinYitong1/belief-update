@@ -68,12 +68,12 @@ dirichlet_exceedance <- function(alpha, n_samples = 1e6) {
 }
 
 FE <- function(m, alpha, g, alpha0 = rep(1, ncol(m))) {
-  # m: N x K log-evidence; g: N x K 责任; alpha: K; alpha0: K (先验Dirichlet)
+ 
   n <- nrow(m); K <- ncol(m)
-  Elogr <- digamma(alpha) - digamma(sum(alpha))                 # E[log r_k]
+  Elogr <- digamma(alpha) - digamma(sum(alpha))                
   
   ELJ <- lgamma(sum(alpha0)) - sum(lgamma(alpha0)) + sum((alpha0 - 1) * Elogr)
-  ELJ <- ELJ + sum(g * (matrix(Elogr, n, K, byrow = TRUE) + m)) # Σ_i,k g_ik(Elogr_k + m_ik)
+  ELJ <- ELJ + sum(g * (matrix(Elogr, n, K, byrow = TRUE) + m))
   
   Sqf <- sum(lgamma(alpha)) - lgamma(sum(alpha)) - sum((alpha - 1) * Elogr)
   Sqm <- -sum(g * log(g + .Machine$double.eps))
@@ -184,13 +184,13 @@ fam_map <- c(
   "BS"               = "Bayesian Sampler",
   "A_BS"             = "Bayesian Sampler",
  # "R"                = "Random",
-  "HA_BS_BO"     = "Heuristic-Anchored (HA)",
-  "HA_BS_HO"     = "Heuristic-Anchored (HA)",
-  "HA_BS_FO"     = "Heuristic-Anchored (HA)",
-  "HA_BS_JO"     = "Heuristic-Anchored (HA)",
-  "HA_BS_LS"     = "Heuristic-Anchored (HA)",
-  "HA_BS_H"      = "Heuristic-Anchored (HA)",
-  "HA_MH"     = "Heuristic-Anchored (HA)"
+  "HA_BS_BO"     = "Heuristic-Anchored (HABS)",
+  "HA_BS_HO"     = "Heuristic-Anchored (HABS)",
+  "HA_BS_FO"     = "Heuristic-Anchored (HABS)",
+  "HA_BS_JO"     = "Heuristic-Anchored (HABS)",
+  "HA_BS_LS"     = "Heuristic-Anchored (HABS)",
+  "HA_BS_H"      = "Heuristic-Anchored (HABS)",
+  "HA_MH"     = "Heuristic-Anchored (HABS)"
 )
 
 # ================== Table and Plot Output Functions ==================
@@ -262,14 +262,14 @@ label_pm <- c(
   
   #"R"  = "plain('Random')",
   
-  "HA_BS_BO" = "HA[plain('BO')]",
-  "HA_BS_HO" = "HA[plain('Rep')]",
-  "HA_BS_FO" = "HA[plain('FC')]",
-  "HA_BS_JO" = "HA[plain('JO')]",
-  "HA_BS_LS" = "HA[plain('LS')]",
-  "HA_BS_H"  = "HA[plain('50%')]",
+  "HA_BS_BO" = "HABS[plain('BO')]",
+  "HA_BS_HO" = "HABS[plain('Rep')]",
+  "HA_BS_FO" = "HABS[plain('FC')]",
+  "HA_BS_JO" = "HABS[plain('JO')]",
+  "HA_BS_LS" = "HABS[plain('LS')]",
+  "HA_BS_H"  = "HABS[plain('50%')]",
 
-  "HA_MH" = "HA[plain('Mix')]"
+  "HA_MH" = "HABS[plain('Mix')]"
 )
 
 plot_two_stage_bms <- function(res,
@@ -318,8 +318,8 @@ plot_two_stage_bms <- function(res,
       guide  = "none"
     ) +
     scale_x_continuous(
-      limits = c(0, 0.85),
-      breaks = seq(0, 0.80, by = 0.20),
+      limits = c(0, 1),
+      breaks = seq(0, 1, by = 0.20),
       labels = scales::percent_format(accuracy = 1),
       expand = c(0, 0.005),
       name   = "Group-level model probability"
@@ -359,7 +359,7 @@ assign_family <- function(x) {
   dplyr::case_when(
     x %in% c("Bayes") ~ "Bayes",
     x %in% c("BS","A_BS") ~ "Bayesian Sampler",
-    grepl("^HA_BS_", x) | x %in% c("HA_MH") ~ "Heuristic-Anchored (HA)",
+    grepl("^HA_BS_", x) | x %in% c("HA_MH") ~ "Heuristic-Anchored (HABS)",
     x %in% c("BO","HO","FO","JO","LS","H") ~ "Simple heuristics",
     x %in% c("MH","AH","LE") ~ "Complex heuristics",
     x %in% c("LA") ~ "Linear Additive",

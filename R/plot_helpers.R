@@ -51,18 +51,22 @@ extract_task_vlines <- function(df, task_label, heuristics) {
     mutate(heuristic = factor(heuristic, levels = heuristics))
 }
 # Function:Filter out responses that match any heuristic
-filter_nonmatches <- function(df, tol = 0.03) {
+filter_nonmatches <- function(df) {
   preds <- data.frame(
     Bayes = round(df$true_posterior, 2),
-    REP   = df$HR,
-    BO    = df$BR,
-    FC    = 1 - df$FAR,
+    REP   = round(df$HR, 2),
+    BO    = round(df$BR, 2),
+    FC    = round(1 - df$FAR, 2),
     JO    = round(df$BR * df$HR, 2),
     LS    = round(df$HR - df$FAR, 2),
-    `50%` = 0.5
+    `50%` = 0.50
   )
-  diffs <- abs(preds - df$response)
-  df[rowSums(diffs <= tol) == 0, ]
+  
+  response <- round(df$response, 2)
+  
+  matches <- preds == response
+  
+  df[rowSums(matches) == 0, ]
 }
 # ==================== Data Loading ============================
 # Function: Load and clean data from different sources
@@ -340,12 +344,17 @@ compute_paired_profiles <- function(df, value_col, group_col = "format") {
 }
 
 # Function: Plot paired profiles (mean or deviation) across two conditions
-plot_paired_profile <- function(paired_obj, title, ylab, labels = c("Probability", "Frequency")) {
+plot_paired_profile <- function(paired_obj, title, ylab) {
   plot(paired_obj, type = "profile") +
     theme_classic(base_size = 10) +
     labs(x = NULL, y = ylab) +
     ggtitle(title) +
-    scale_x_discrete(labels = labels) +
+    scale_x_discrete(
+      labels = c(
+        prob_val = "Probability",
+        freq_val = "Frequency"
+      )
+    ) +
     theme(
       plot.title = element_text(size = 11, face = "bold"),
       axis.text.x = element_text(size = 10),
@@ -420,10 +429,10 @@ plot_model_accuracy <- function(df, file_stub = NULL) {
     )
   
   fill_cols <- c(
-    "Heuristic"                          = "#4E79A7",  # 深一点的蓝
-    "Bayesian Sampler"                   = "#F28E2B",  # 橙
-    "Heuristic-Anchored Bayesian Sampler"= "#59A14F",  # 绿（HABS）
-    "Bayes"                              = "#E15759"   # 红
+    "Heuristic"                          = "#4E79A7",  
+    "Bayesian Sampler"                   = "#F28E2B",  
+    "Heuristic-Anchored Bayesian Sampler"= "#59A14F",  
+    "Bayes"                              = "#E15759"  
   )
   
   p <- ggplot(df_final, aes(x = family_group, y = Accuracy, fill = model_type)) +
@@ -432,7 +441,7 @@ plot_model_accuracy <- function(df, file_stub = NULL) {
     scale_fill_manual(values = fill_cols, name = NULL) +
     scale_y_continuous(
       "Proportion Accurate (< 3%)",
-      limits = c(0, 0.6), breaks = seq(0, 0.6, 0.1)
+      limits = c(0, 1), breaks = seq(0, 1, 0.2)
     ) +
     labs(
       title = "Model Accuracy Comparison",

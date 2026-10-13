@@ -1,19 +1,3 @@
-################################################################################
-# POSTERIOR HELPER FUNCTIONS FOR BELIEF UPDATING MODELS (SUBJECT-LEVEL ONLY)
-################################################################################
-#
-# This module implements Approximate Bayesian Computation (ABC) inference and
-# posterior predictive checking for cognitive models of belief updating.
-#
-# This version focuses on SUBJECT-LEVEL analyses:
-#   - ABC rejection sampling with neural network adjustment per subject
-#   - Posterior predictive simulations per subject
-#   - Model validation metrics (overlap coefficients, PPP values) per subject
-#   - Integrated subject-level analysis pipeline
-#
-# Author: Yitong Lin (modified for subject-level only)
-################################################################################
-
 
 ################################################################################
 # 0. DEPENDENCIES
@@ -468,7 +452,7 @@ run_abc_all_subjects <- function(human_data,
   
   if (calculate_variance) {
     var_summary <- compute_variance_summary(
-      data.table::as.data.table(human_data),           # 确保是 data.table
+      data.table::as.data.table(human_data),           
       column       = "response",
       group_vars   = c(subject_col, "BR", "HR", "FAR"),
       summary_vars = c(subject_col)
@@ -595,7 +579,7 @@ run_subject_level_validation <- function(
     sim_params         = sim_params,
     simulations        = simulations,
     subject_col        = subject_col,
-    calculate_variance = calculate_variance,   # ← 传下去
+    calculate_variance = calculate_variance,   
     abc_tol            = abc_tol
   )
   observed_indiv <- abc_indiv$human_summary
@@ -1163,8 +1147,3 @@ plot_prior_vs_posterior_group <- function(param_name,
     ) +
     theme_classic()
 }
-
-
-################################################################################
-# END OF MODULE
-################################################################################

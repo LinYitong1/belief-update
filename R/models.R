@@ -1,10 +1,3 @@
-# models.R - Define cognitive models
-#
-# Description:
-# Created on: 2025-06-26
-# Author: Yitong Lin
-# -----------------------------
-
 # Basic Model
 B <- function(BR, HR, FAR) {
   result <- BR * HR / ((BR * HR) + (1 - BR) * FAR)

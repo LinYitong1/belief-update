@@ -193,18 +193,22 @@ make_round_table <- function(results, out_path,
 }
 
 # Function:Filter out responses that match any heuristic
-filter_nonmatches <- function(df, tol = 0.03) {
+filter_nonmatches <- function(df) {
   preds <- data.frame(
     Bayes = round(df$true_posterior, 2),
-    REP   = df$HR,
-    BO    = df$BR,
-    FC    = 1 - df$FAR,
+    REP   = round(df$HR, 2),
+    BO    = round(df$BR, 2),
+    FC    = round(1 - df$FAR, 2),
     JO    = round(df$BR * df$HR, 2),
     LS    = round(df$HR - df$FAR, 2),
-    `50%` = 0.5
+    `50%` = 0.50
   )
-  diffs <- abs(preds - df$response)
-  df[rowSums(diffs <= tol) == 0, ]
+  
+  response <- round(df$response, 2)
+  
+  matches <- preds == response
+  
+  df[rowSums(matches) == 0, ]
 }
 # Function:Overlap
 # ---------- A. Model Prediction ----------
