@@ -1,8 +1,6 @@
-# =============================
-# Belief Updating Table Analysis (Modular)
+# Belief updating tables
 # Author: Yitong
 # Date: 2025-06-09
-# =============================
 
 library(readr)
 library(dplyr)
@@ -19,7 +17,7 @@ library(lmerTest)
 library(emmeans)
 library(scales)
 
-# ---- Data loading ----
+# Data loading: Stengard subject IDs combine participant and format.
 load_clean_data <- function(path, type = c("experiment", "stengard", "sirota")) {
   type <- match.arg(type)
   if (type == "experiment") {
@@ -57,9 +55,8 @@ load_clean_data <- function(path, type = c("experiment", "stengard", "sirota")) 
   }
 }
 
-# ---- Regression slope/t-test summary ----
+# Regression slope/t-test summary
 slope_t_summary <- function(df, mu = 1, out_path = NULL, caption = NULL) {
-  # 1. Calculate slope per subject and format
   slopes <- df %>%
     group_by(subject, format) %>%
     do({
@@ -67,8 +64,8 @@ slope_t_summary <- function(df, mu = 1, out_path = NULL, caption = NULL) {
       tibble(slope = coef(fit)[2])
     }) %>%
     ungroup()
-  
-  # 2. For each format, do t-test of slopes vs. mu
+
+  # Test participant slopes against mu separately within each format.
   results <- slopes %>%
     group_by(format) %>%
     summarise(
@@ -90,7 +87,7 @@ slope_t_summary <- function(df, mu = 1, out_path = NULL, caption = NULL) {
     ) %>%
     ungroup() %>%
     dplyr::select(Format = format, Mean_CI, t, df, p = p_report)
-  
+
   if (!is.null(out_path)) {
     kbl(results,
         format = "latex", booktabs = TRUE,
@@ -101,8 +98,7 @@ slope_t_summary <- function(df, mu = 1, out_path = NULL, caption = NULL) {
   results
 }
 
-
-# ---- Heuristic/exact match summary ----
+# Heuristic/exact match summary
 calculate_fractional_matches <- function(x) {
   pred_B  <- round(x$true_posterior, 2)
   pred_BO <- x$BR
@@ -134,7 +130,7 @@ calculate_fractional_matches <- function(x) {
 }
 
 exact_match_table <- function(stengard, sirota, out_path = NULL, caption = NULL) {
-  stan <- stengard 
+  stan <- stengard
   stengard_matches <- rbind(
     calculate_fractional_matches(stan %>% filter(format == "probability")),
     calculate_fractional_matches(stan %>% filter(format == "frequency"))
@@ -153,17 +149,17 @@ exact_match_table <- function(stengard, sirota, out_path = NULL, caption = NULL)
   result
 }
 
-# ---- Round summary ----
+# Round summary
 is_round_pct <- function(x, tol = 1e-9) {
   rem <- x %% 5
   (rem < tol) | (abs(rem - 5) < tol)
 }
 
 round_prop_tbl <- function(data, label, tol = 1e-9) {
-  
+
   heur_cols <- c("BO", "REP", "JO", "FC", "LS", "Bayes")
-  
-  data %>% 
+
+  data %>%
     mutate(
       BO    = BR    * 100,
       REP   = HR    * 100,
@@ -171,28 +167,28 @@ round_prop_tbl <- function(data, label, tol = 1e-9) {
       FC    = (1 - FAR) * 100,
       LS    = (HR - FAR) * 100,
       Bayes = BR*HR / (BR*HR + (1 - BR)*FAR) * 100
-    ) %>% 
+    ) %>%
     summarise(across(all_of(heur_cols),
-                     ~ mean(is_round_pct(.x, tol), na.rm = TRUE))) %>% 
+                     ~ mean(is_round_pct(.x, tol), na.rm = TRUE))) %>%
     mutate(dataset = label, .before = 1)
 }
 
 make_round_table <- function(results, out_path,
                              caption = NULL) {
-  
+
   default_cap <- "Proportion of round-valued heuristic predictions (\\%)"
-  
+
   kbl(results,
       format   = "latex",
       booktabs = TRUE,
       caption  = ifelse(is.null(caption), default_cap, caption),
-      align    = "lrrrrrr") %>%               
+      align    = "lrrrrrr") %>%
     kable_classic_2(full_width = FALSE,
-                    font_size   = 10) %>% 
+                    font_size   = 10) %>%
     save_kable(out_path)
 }
 
-# Function:Filter out responses that match any heuristic
+# Exclude responses matching Bayes or any listed heuristic after rounding.
 filter_nonmatches <- function(df) {
   preds <- data.frame(
     Bayes = round(df$true_posterior, 2),
@@ -203,15 +199,14 @@ filter_nonmatches <- function(df) {
     LS    = round(df$HR - df$FAR, 2),
     `50%` = 0.50
   )
-  
+
   response <- round(df$response, 2)
-  
+
   matches <- preds == response
-  
+
   df[rowSums(matches) == 0, ]
 }
-# Function:Overlap
-# ---------- A. Model Prediction ----------
+# Model-prediction overlap
 add_preds <- function(dt, digits = 2) {
   dt %>% mutate(
     B   = round(true_posterior, digits),
@@ -228,12 +223,12 @@ get_overlap_mat <- function(dt, digits = 2,
                             cols = c("B","REP","BO","FC","LS","JO","H")) {
   preds <- add_preds(dt, digits) %>%
     dplyr::select(any_of(cols)) %>%
-    mutate(across(everything(), as.numeric))  # guard against factors/char
-  
+    mutate(across(everything(), as.numeric))
+
   mod_names <- names(preds)
   n_mod <- ncol(preds)
   overlap <- matrix(0, n_mod, n_mod, dimnames = list(mod_names, mod_names))
-  
+
   for (i in seq_len(n_mod)) {
     for (j in i:n_mod) {
       p <- mean(preds[[i]] == preds[[j]], na.rm = TRUE) * 100
@@ -251,38 +246,36 @@ latex_overlap_table <- function(dt, digits=2,
                                 caption="Model-prediction overlap (\\%)") {
   mat <- get_overlap_mat(dt, digits, cols)
   labs <- label_map[colnames(mat)]
-  labs <- sub("%", "\\\\%", labs, fixed = TRUE)  
+  labs <- sub("%", "\\\\%", labs, fixed = TRUE)
   colnames(mat) <- labs; rownames(mat) <- labs
-  
+
   kbl(mat, format="latex", booktabs=TRUE, escape=FALSE,
       caption=caption, align="r") |>
     kable_styling(latex_options=c("hold_position"), full_width=FALSE)
 }
 
-
-
-# ---------- B. Core：Row level overlap & response match ----------
+# Trial-level Bayes–heuristic overlap and response matching
 flag_overlaps <- function(dt, digits = 2, tol = NULL) {
   dt <- add_preds(dt, digits)
-  
-  pred_cols <- c("BO","REP","FC","JO","LS","H","B")  
+
+  pred_cols <- c("BO","REP","FC","JO","LS","H","B")
   stopifnot(all(pred_cols %in% names(dt)))
 
   if (is.null(tol)) tol <- 5 * 10^-(digits + 1)
-  
+
   preds_mat <- as.matrix(dt[, pred_cols])
   n <- nrow(preds_mat); k <- ncol(preds_mat)
-  
+
   b_idx <- match("B", pred_cols)
   h_idx <- setdiff(seq_len(k), b_idx)
-  
+
   bh_equal_mat <- abs(preds_mat[, h_idx, drop = FALSE] - preds_mat[, b_idx]) <= tol
   dt$stim_bh_overlap <- rowSums(bh_equal_mat) > 0
-  
+
   r <- round(dt$response, digits)
   r_mat <- matrix(r, nrow = n, ncol = k)
   eq_to_resp <- abs(preds_mat - r_mat) <= tol
-  
+
   bayes_hit  <- eq_to_resp[, b_idx]
   heur_hit   <- rowSums(eq_to_resp[, h_idx, drop = FALSE]) > 0
   dt$resp_bh_overlap <- bayes_hit & heur_hit
@@ -290,22 +283,19 @@ flag_overlaps <- function(dt, digits = 2, tol = NULL) {
   bh_overlap_rates <- colMeans(bh_equal_mat) * 100
   names(bh_overlap_rates) <- pred_cols[h_idx]
   attr(dt, "bh_overlap_rates_pct") <- bh_overlap_rates
-  
+
   attr(dt, "bh_union_pct") <- mean(dt$stim_bh_overlap) * 100
-  
+
   dt
 }
 
-
 summarise_overlap <- function(dt_flagged){
-  dt_flagged %>% 
-    group_by(experiment, format) %>% 
+  dt_flagged %>%
+    group_by(experiment, format) %>%
     summarise(
       total_trials             = n(),
-      # Stimulus Level
       stim_bh_overlap_n        = sum(stim_bh_overlap),
       stim_bh_overlap_rate     = stim_bh_overlap_n / total_trials,
-      # Response Level
       resp_bh_overlap_n        = sum(resp_bh_overlap),
       resp_bh_overlap_rate     = resp_bh_overlap_n / total_trials,
       .groups = "drop"
@@ -350,7 +340,7 @@ make_main_overlap_table <- function(dt_flagged,
            `Bayes–Heur. overlap (stim)`, `95% CI (stim)`,
            `Bayes–Heur. overlap (resp)`, `95% CI (resp)`) %>%
     arrange(experiment, format)
-  
+
   kbl(sum_tbl, format = "latex", booktabs = TRUE, escape = TRUE,
       caption = caption, align = c("l","l","r","r","l","r","l")) |>
     kable_styling(latex_options = c("hold_position"), full_width = FALSE)

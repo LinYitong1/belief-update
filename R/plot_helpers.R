@@ -310,7 +310,7 @@ plot_mean_vs_tp <- function(df, group_vars, color_var,
   if (!is.null(file_stub)) {
     dir.create(plot_dir_tiff, showWarnings = FALSE, recursive = TRUE)
     dir.create(plot_dir_png,  showWarnings = FALSE, recursive = TRUE)
-
+    
     ggsave(
       file.path(plot_dir_tiff, paste0(file_stub, ".tiff")),
       plot  = p,
@@ -318,7 +318,7 @@ plot_mean_vs_tp <- function(df, group_vars, color_var,
       height = plot_height,
       dpi   = 600
     )
-
+    
     ggsave(
       file.path(plot_dir_png, paste0(file_stub, ".png")),
       plot  = p,
@@ -484,7 +484,103 @@ plot_model_accuracy <- function(df, file_stub = NULL) {
   
   invisible(p)
 }
+# ==================== experiment2 ================================
+plot_exp2_blocks <- function(plot_summary) {
+  
+  ggplot(
+    plot_summary,
+    aes(
+      x = block_num,
+      y = mean,
+      group = time_pressure,
+      colour = time_pressure,
+      shape = time_pressure
+    )
+  ) +
+    geom_line(
+      linewidth = 0.8
+    ) +
+    geom_errorbar(
+      aes(
+        ymin = mean - se,
+        ymax = mean + se
+      ),
+      width = 0.07,
+      linewidth = 0.5
+    ) +
+    geom_point(
+      size = 3.2
+    ) +
+    scale_x_continuous(
+      breaks = c(1, 2),
+      labels = c("First block", "Second block"),
+      limits = c(0.85, 2.15)
+    ) +
+    scale_colour_manual(
+      values = c(
+        "Self-paced" = "#E78AC3",
+        "Time-limited" = "#4C78A8"
+      )
+    ) +
+    scale_shape_manual(
+      values = c(
+        "Self-paced" = 17,
+        "Time-limited" = 16
+      )
+    ) +
+    facet_grid(
+      measure ~ format,
+      scales = "free_y",
+      switch = "y"
+    ) +
+    labs(
+      x = NULL,
+      y = NULL,
+      colour = "Condition",
+      shape = "Condition"
+    ) +
+    theme_classic(base_size = 12) +
+    theme(
+      legend.position = "top",
+      legend.title = element_blank(),
+      
+      strip.background = element_blank(),
+      strip.placement = "outside",
+      strip.text = element_text(
+        face = "bold",
+        size = 11
+      ),
+      strip.text.y.left = element_text(angle = 0),
+      
+      axis.text.x = element_text(size = 10),
+      
+      panel.spacing.y = grid::unit(1.5, "lines"),
+      panel.spacing.x = grid::unit(0.8, "lines"),
+      
+      panel.border = element_rect(
+        colour = "grey80",
+        fill = NA,
+        linewidth = 0.4
+      ),
+      
+      plot.margin = margin(10, 15, 10, 15)
+    )
+}
 
+save_exp2_figure <- function(plot, basename) {
+  ggsave(
+    filename = here::here("fig", "png", paste0(basename, ".png")),
+    plot = plot,
+    width = 11, height = 8, units = "in",
+    dpi = 600, bg = "white"
+  )
+  ggsave(
+    filename = here::here("fig", "tiff", paste0(basename, ".tiff")),
+    plot = plot,
+    width = 11, height = 8, units = "in",
+    dpi = 600, compression = "lzw", bg = "white"
+  )
+}
 
 # ==================== Constants ================================
 # List of heuristics (used for plotting and extraction)

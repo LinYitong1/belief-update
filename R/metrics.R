@@ -1,6 +1,4 @@
-# R/metrics.R (Unified & Minimal)
-
-# ----- Generalized Metric Functions -----
+# Reference predictions and response metrics
 metric_reference <- function(x, reference) {
   switch(reference,
          "B"  = round(x$true_posterior, 2),
@@ -25,7 +23,7 @@ PD <- function(x, reference, column = "predict") {
   mean(sign(x[[column]] - metric_reference(x, reference)) == 1)
 }
 
-# ----- Batch Runner for All EMP/Ad/PD Types -----
+# EMP, Ad, and PD by model or participant
 compute_all_metrics <- function(df, column = "predict", group_vars = c("model", "Iteration")) {
   refs <- c("B", "BO", "HO", "FO", "JO", "LS", "H")
   metrics <- df[, {
@@ -42,21 +40,20 @@ compute_all_metrics <- function(df, column = "predict", group_vars = c("model", 
   return(metrics)
 }
 
-# ----- Accuracy -----
-compute_CLC_summary <- function(dt, column = "predict", 
-                                group_vars = c("model", "Iteration"), 
+# Accuracy: absolute error strictly below the threshold
+compute_CLC_summary <- function(dt, column = "predict",
+                                group_vars = c("model", "Iteration"),
                                 summary_var = "model", threshold = 0.03) {
   clc_stat <- function(x) {
     mean(abs(x[[column]] - x$true_posterior) < threshold)
   }
   clc_dt <- dt[, .(CLC = clc_stat(.SD)), by = group_vars]
   Accuracy <- clc_dt[, .(Accuracy = mean(CLC, na.rm = TRUE)), by = summary_var]
-  
+
   return(Accuracy)
 }
 
-
-# ----- Slope & Intercept Function -----
+# Slopes and transformed intercepts
 SI <- function(x, intercept_cap = 100, column = "predict") {
   formula <- as.formula(paste(column, "~ true_posterior"))
   model <- lm(formula, data = x)
@@ -64,7 +61,7 @@ SI <- function(x, intercept_cap = 100, column = "predict") {
   intercept <- if (abs(1 - slope) < 1e-3) intercept_cap else coef(model)[1] / (1 - slope)
   data.frame(slope = slope, intercept = intercept)
 }
-# ----- Batch SI Runner -----
+# Slopes and transformed intercepts by predictor level
 compute_SI_by <- function(dt, group_vars = c("model", "Iteration"),
                           predictors = c("BR", "HR", "FAR"),
                           column = "predict") {
@@ -80,12 +77,10 @@ compute_SI_by <- function(dt, group_vars = c("model", "Iteration"),
   Reduce(function(x, y) left_join(x, y, by = group_vars), si_tables)
 }
 
-# ----- Variance -----
-compute_variance_summary <- function(dt, column = "predict", 
-                                     group_vars = c("model", "Iteration", "BR", "HR", "FAR"), 
+# Mean within-item variance
+compute_variance_summary <- function(dt, column = "predict",
+                                     group_vars = c("model", "Iteration", "BR", "HR", "FAR"),
                                      summary_vars = c("model", "Iteration")) {
   var_dt <- dt[, .(variance = var(get(column), na.rm = TRUE)), by = group_vars]
   var_dt[, .(mean_variance = mean(variance, na.rm = TRUE)), by = summary_vars]
 }
-
-

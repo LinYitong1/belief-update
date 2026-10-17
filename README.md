@@ -1,166 +1,64 @@
-# Belief Updating Project
+# Integrating Heuristics and Mental Sampling in Belief Updating
 
----
+This repository contains the data analysis and computational modelling code for the research project **Integrating Heuristics and Mental Sampling in Belief Updating**, submitted to *Journal of Experimental Psychology: General*.
 
 ## Overview
 
-This project compares **17 cognitive models** of belief updating across:
-- Two datasets: experimental and replication study
-- Two presentation formats: probability and frequency
+This project investigates how people combine simple heuristics and Bayesian sampling when updating beliefs in response to new evidence.
 
-### Methodology
+We examine whether probability judgements can be explained by a hybrid computational framework in which people use heuristics to generate initial estimates and refine them through limited Bayesian sampling.
 
-- **ABC-RF**: Random Forest for individual-level model inference
-- **ABC**: Rejection sampling for parameter estimation  
-- **RFX-BMS**: Random Effects Bayesian Model Selection
+The repository includes analyses from three datasets:
 
----
+1. **Stengård dataset reanalysis:** Reanalysis of an existing dataset to evaluate heuristic, Bayesian, sampling, and hybrid models.
+2. **Experiment 1:** An experimental investigation of belief updating using frequency and probability presentation formats.
+3. **Experiment 2:** A follow-up experiment examining how time pressure influences probability judgements, heuristic use, and Bayesian sampling.
 
-## Project Structure
+Supporting descriptive analyses also use `data/sirota.csv` (Sirota et al., 2024), particularly Figure 1. The three principal datasets and supporting input are mapped in the [analysis guide](docs/analysis_pipeline.md#study-mapping-and-glossary).
 
-```
-belief-update/
-├── data/              # Raw and processed data (.csv, .rds)
-├── R/                 # Model definitions and helper functions
-├── scripts/           # Analysis pipeline (run in order)
-├── fig/               # Generated figures (TIFF, PNG)
-```
+## Repository Structure
 
----
-
-## Quick Start
-
-### 1. Install Dependencies
-
-```r
-install.packages("pacman")
-pacman::p_load(
-  data.table, tidyverse, abc, abcrf, ranger, MCMCpack,
-  ggplot2, patchwork, parallel, doParallel, knitr, kableExtra
-)
+```text
+R/                         Shared model, inference, statistics, and reporting functions
+scripts/Reanalysis_Exp1/    Joint Stengård, Experiment 1, and supporting analyses
+scripts/Exp2/              Experiment 2 analyses
+data/Exp1/                 Experiment 1 trials, demographics, and intermediate results
+data/Exp2/                 Experiment 2 trials, reference simulations, and posterior draws
+data/Stengard/             Stengård trials and intermediate results
+data/sirota.csv            Supporting descriptive dataset
+results/Exp2_PPC_r05/       Saved Experiment 2 predictive-check results and heatmaps
+fig/png/, fig/tiff/         Supplied figures and figure output destinations
+Table/                     LaTeX tables
+docs/analysis_pipeline.md   Execution order, dependencies, and reproducibility details
 ```
 
-### 2. Run Complete Pipeline
+## Analyses
 
-```r
-setwd("/path/to/belief-update/")
+The repository contains code for the following analyses:
 
-# Complete analysis workflow
-source("scripts/00_data_process.R")                 # Clean data
-source("scripts/00_plot.R")                         # All figures
-source("scripts/00_stats_table.R")                  # All tables
-source("scripts/01_simulate_parameters.R")          # Generate priors
-source("scripts/02_generate_predictions.R")         # Model predictions
-source("scripts/03_summary_stats.R")                # Summary statistics
-source("scripts/04_abcrf_individual_inference.R")   # ABC-RF Individual Model Fitting
-source("scripts/05_posterior.R")                    # Posterior Check
-source("scripts/05_posterior_MH.R")                 # Posterior Check
+- **Behavioural analyses:** Probability judgements, deviations from Bayesian predictions, heuristic matching, and effects of presentation format and time pressure.
+- **Computational modelling:** Implementation and comparison of Bayesian, heuristic, sampling, and hybrid models, including the Mixture Heuristic-Anchored Bayesian Sampler (HABS).
+- **Model comparison:** Approximate Bayesian computation with random forests (ABC-RF), followed by variational Bayesian model and family selection for Stengård and Experiment 1.
+- **Parameter estimation:** Neural-network ABC for the shared `M_L` and `MH` analyses; rejection ABC for Experiment 2 `M_L` inference.
+- **Model evaluation:** Classifier diagnostics and posterior predictive checks (PPC).
+- **Figures and tables:** Scripts used to generate the results presented in the manuscript and supplementary materials.
+
+## Reproducing the Analyses
+
+The analyses were developed in R. Start a fresh session from the repository root, with dependencies installed as described in the [environment guide](docs/analysis_pipeline.md#environment-and-execution). For example, the first-block analysis consumes the supplied Experiment 2 trials and posterior draws:
+
+```sh
+Rscript --vanilla scripts/Exp2/Exp2_First_Block.R
 ```
 
----
+For a detailed description of the analysis workflows, required inputs, execution order, and current reproducibility limitations, see [Analysis Pipeline](docs/analysis_pipeline.md).
 
-## Cognitive Models
+Supplied intermediate results support downstream analyses. Raw reconstruction inputs for both experiments are absent, and end-to-end reproduction has not been verified. Existing numbered figures are preserved; future Experiment 2 exports use descriptive filenames. See the guide for [output mappings and numbering limitations](docs/analysis_pipeline.md#figures-and-tables).
 
-### Summary of Candidate Models
+## Citation
 
-<details>
-<summary><b>Click to expand full model table</b></summary>
+If you use this code or data, please cite the associated manuscript:
 
-| **Family** | **Model / Category** | **Abbrev.** | **Description** |
-|------------|---------------------|-------------|-----------------|
-| **Bayes Rule** | Bayes Rule | `Bayes` | The normative Bayesian posterior, serving as the optimal benchmark for comparison across models. |
-| **Simple Heuristics** | Heuristic rules | `BO`, `REP`, `FC` | Simple rules: Base rate Only (BO), REPresent (REP), False alarm Complement (FC). |
-| **Complex Heuristics** | Lexicographic | `LE` | Sequential cue evaluation with thresholds on BR, HR, and FAR. |
-| | Adaptive heuristic | `AH` | Selects, on each trial, the heuristic that minimizes absolute deviation from the Bayesian posterior. |
-| | Mixture heuristic | `MH` | Draws a heuristic on each trial from a categorical mixture with Dirichlet-weighted probabilities. |
-| **Linear Additive** | Linear additive | `LA` | Weighted linear combination of BR, HR, and FAR cues. |
-| **Bayesian Sampler** | Symmetric prior | `BS` | Limited-sample Bayesian inference with a symmetric prior centered at 0.5. |
-| | Asymmetric prior | `BS-A` | Limited-sample Bayesian inference with a prior mean drawn from a flexible subjective distribution. |
-| **Heuristic-Anchored BS** | Single-anchor | `HABS_anchor` | Dual-process mixture: the response is either the heuristic anchor or an anchored Bayesian sample. The subscript *anchor* denotes a specific heuristic (e.g., BO, REP, FC, JO, LS, or 0.5). |
-| | Mixture-anchor | `HABS_mixed` | Extension of HABS_anchor in which the anchor α is drawn on each trial from a set of simple heuristics according to probability vector **p**. Captures individual differences in deliberation (q) and anchor preferences (**p**). |
+Lin, Y., Sanborn, A. N., & Chater, N. *Integrating Heuristics and Mental Sampling in Belief Updating*. Manuscript submitted to *Journal of Experimental Psychology: General*.
 
-</details>
-
-### Simple Heuristics Reference
-
-| Abbrev. | Full Name | Formula/Description |
-|---------|-----------|---------------------|
-| `HO` | Hit rate Only | Response = HR |
-| `FO` | False alarm complement | Response = 1 - FAR |
-| `JO` | Joint Occurrence | Response = BR × HR |
-| `LS` | Likelihood Subtraction | Response = HR - FAR |
-| `H` | 50% Heuristic | Always responds 0.5 |
-
----
-
-
----
-
-## Outputs
-
-| Type | Location | Format |
-|------|----------|--------|
-| **Figures (high-res)** | `fig/tiff/` | TIFF (600 DPI) |
-| **Figures (web)** | `fig/png/` | PNG (300 DPI) |
-| **Tables** | `Table/*.tex` | LaTeX format |
-| **Data** | `data/*.rds` | R data files |
-
----
-
-## System Requirements
-
-| Component | Requirement |
-|-----------|-------------|
-| **R Version** | ≥ 4.0 |
-| **RAM** | 16 GB minimum (32 GB recommended) |
-| **CPU** | Multi-core processor (uses parallelization) |
-| **Disk Space** | ~5 GB |
-
----
-
-## Author
-
-**Yitong Lin**  
-Contact: yitong.lin@warwick.ac.uk
-
----
-
-## Troubleshooting
-
-<details>
-<summary><b>Common Issues and Solutions</b></summary>
-
-### Out of Memory Errors
-
-**Problem**: R crashes with memory allocation errors  
-**Solution**: Reduce the number of cores used in parallelized scripts
-
-```r
-# In scripts, modify:
-n_cores <- detectCores() - 2  
-```
-
-### Missing Package Dependencies
-
-**Problem**: Package installation fails  
-**Solution**: Install packages with full dependencies
-
-```r
-install.packages("package_name", dependencies = TRUE)
-```
-
-### Large File Warnings (Git)
-
-**Problem**: Git warns about large TIFF files (>50 MB)  
-**Solution**: Consider using Git Large File Storage (LFS)
-
-```bash
-git lfs install
-git lfs track "*.tiff"
-git add .gitattributes
-```
-
-</details>
-
----
-
+*Full publication details will be updated upon acceptance.*
