@@ -502,8 +502,8 @@ plot_exp2_blocks <- function(plot_summary) {
     ) +
     geom_errorbar(
       aes(
-        ymin = mean - se,
-        ymax = mean + se
+        ymin = mean - qt(0.975, df = n - 1) * se,
+        ymax = mean + qt(0.975, df = n - 1) * se
       ),
       width = 0.07,
       linewidth = 0.5

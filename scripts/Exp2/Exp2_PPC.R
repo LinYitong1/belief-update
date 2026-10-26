@@ -228,7 +228,7 @@ ppc_overall <- ppc_tests %>%
                    median_ppp = median(ppp[valid_check], na.rm = TRUE),
                    proportion_ppp_below_05 = mean(bad_fit[valid_check], na.rm = TRUE))
 
-out_dir <- here::here("results", "Exp2_PPC_r05")
+out_dir <- here::here("data", "Exp2")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 saveRDS(

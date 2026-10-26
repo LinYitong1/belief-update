@@ -56,7 +56,7 @@ load_clean_data <- function(path, type = c("experiment", "stengard", "sirota")) 
 }
 
 # Regression slope/t-test summary
-slope_t_summary <- function(df, mu = 1, out_path = NULL, caption = NULL) {
+slope_t_summary <- function(df, mu = 1, caption = NULL) {
   slopes <- df %>%
     group_by(subject, format) %>%
     do({
@@ -92,8 +92,7 @@ slope_t_summary <- function(df, mu = 1, out_path = NULL, caption = NULL) {
     kbl(results,
         format = "latex", booktabs = TRUE,
         caption = ifelse(is.null(caption), "Test of regression slopes vs. 1 (mean, 95\\% CI, t-test)", caption)) %>%
-      kable_classic_2(full_width = FALSE, font_size = 10) %>%
-      save_kable(out_path)
+      kable_classic_2(full_width = FALSE, font_size = 10) 
   }
   results
 }
@@ -103,7 +102,7 @@ calculate_fractional_matches <- function(x) {
   pred_B  <- round(x$true_posterior, 2)
   pred_BO <- x$BR
   pred_HO <- x$HR
-  pred_FO <- 1 - x$FAR
+  pred_FO <- round(1 - x$FAR, 2)
   pred_JO <- round(x$BR * x$HR, 2)
   pred_LS <- round(x$HR - x$FAR, 2)
   pred_H  <- rep(0.5, nrow(x))
@@ -148,6 +147,83 @@ exact_match_table <- function(stengard, sirota, out_path = NULL, caption = NULL)
   }
   result
 }
+# ============================================================
+# Chi-squared analysis: Heuristic distribution × Format
+# Participant-level permutation test
+# ============================================================
+calculate_match_scores <- function(x) {
+  all_preds <- data.frame(
+    Bayes = round(x$true_posterior, 2),
+    REP   = x$HR,
+    BO    = x$BR,
+    FC    = round(1 - x$FAR, 2),
+    LS    = round(x$HR - x$FAR, 2),
+    JO    = round(x$BR * x$HR, 2),
+    X50.  = rep(0.5, nrow(x))
+  )
+  
+  scores <- matrix(
+    0, nrow = nrow(x), ncol = ncol(all_preds)
+  )
+  colnames(scores) <- colnames(all_preds)
+  
+  for (i in seq_len(nrow(x))) {
+    matches <- which(all_preds[i, ] == x$response[i])
+    if (length(matches) > 0) {
+      scores[i, matches] <- 1 / length(matches)
+    }
+  }
+  
+  data.frame(
+    subject = x$subject,
+    format = x$format,
+    scores,
+    check.names = FALSE
+  )
+}
+heuristics <- c("BO", "REP", "FC", "JO", "LS", "X50.")
+
+run_chi_test <- function(data, dataset_name, n_perm = 9999, seed = 111) {
+  match_scores <- calculate_match_scores(data)
+  subject_scores <- match_scores %>%
+    group_by(subject, format) %>%
+    summarise(
+      across(all_of(heuristics), sum),
+      .groups = "drop"
+    )
+  stopifnot(all(table(subject_scores$subject) == 1))
+  scores <- as.matrix(subject_scores[, heuristics])
+  labels <- subject_scores$format
+  
+  chi_stat <- function(group_labels) {
+    counts <- rowsum(scores, group_labels)
+    expected <- outer(
+      rowSums(counts),
+      colSums(counts)
+    ) / sum(counts)
+    
+    sum((counts - expected)^2 / expected)
+  }
+  set.seed(seed)
+  observed_chi <- chi_stat(labels)
+  permuted_chi <- replicate(
+    n_perm,
+    chi_stat(sample(labels))
+  )
+  p_perm <- (sum(permuted_chi >= observed_chi) + 1) /
+    (n_perm + 1)
+  result <- data.frame(
+    Dataset = dataset_name,
+    N = nrow(subject_scores),
+    Chi_squared = observed_chi,
+    df = length(heuristics) - 1,
+    Permutation_p = p_perm
+  )
+  list(
+    summary = result
+  )
+}
+
 
 # Round summary
 is_round_pct <- function(x, tol = 1e-9) {

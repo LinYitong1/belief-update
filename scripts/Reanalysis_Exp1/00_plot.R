@@ -2,7 +2,8 @@
 # 0. Setup
 pacman::p_load(
   readxl, readr, dplyr, tidyr, ggplot2, scales, viridisLite, patchwork,
-  lme4, broom, gt, data.table, PairedData, gridExtra, RColorBrewer,ggpubr
+  lme4, broom, gt, data.table, PairedData, gridExtra, RColorBrewer,ggpubr,
+  stringr
 )
 options(stringsAsFactors = FALSE)
 

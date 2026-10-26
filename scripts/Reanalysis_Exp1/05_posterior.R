@@ -317,9 +317,9 @@ final_plot <- plot_prob_overlay + plot_freq_overlay +
 
 final_plot
 
-ggsave(file.path(plot_dir_tiff, "Exp1_ML_Predictive_Distributions.tiff"),
+ggsave(file.path(plot_dir_tiff, "Figure_14.tiff"),
        final_plot, width = 6, height = 4, dpi = 600)
-ggsave(file.path(plot_dir_png,  "Exp1_ML_Predictive_Distributions.png"),
+ggsave(file.path(plot_dir_png,  "Figure_14.png"),
        final_plot, width = 6, height = 4, dpi = 300)
 
 # 5. Format-level ABC parameter inference and prior/posterior plots

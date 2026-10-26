@@ -22,6 +22,7 @@ table2 <- exact_match_table(s, out_path = file.path(out_path, "Table2.tex"),
                             caption = "Exact match rates across conditions.")
 cat("\n=== Table 2: Heuristic/exact match summary ===\n")
 print(table2)
+
 # Table 3: Summary of candidate models included in the comparison.(Manually created in LaTeX)
 # Table 4: Proportion of heuristic and Bayes predictions that fall on round values (%)
 tbl_round <- bind_rows(
@@ -35,7 +36,7 @@ results <- tbl_round %>%
 make_round_table(results  ,
                  out_path = "Table/Table4.tex")
 
-# Table 5: Fractional-credit exact matching by format (primary experiment).
+# Table 5: Fractional-credit exact matching by format (experiment 1).
 table5 <- exact_match_table(df, out_path = file.path(out_path, "Table5.tex"),
                             caption = "Exact match rates across conditions.")
 cat("\n=== Table 5: Heuristic/exact match summary ===\n")
