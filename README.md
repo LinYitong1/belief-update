@@ -27,7 +27,7 @@ The repository contains code for the following analyses:
 
 ## Reproducing the Analyses
 
-The analyses were developed in R. Start a fresh session from the repository root, with dependencies installed as described in the [environment guide](docs/analysis_pipeline.md#environment-and-execution). For example, the first-block analysis consumes the supplied Experiment 2 trials and posterior draws:
+The analyses were developed in R. For example, the first-block analysis consumes the supplied Experiment 2 trials and posterior draws:
 
 ```sh
 Rscript --vanilla scripts/Exp2/Exp2_First_Block.R
