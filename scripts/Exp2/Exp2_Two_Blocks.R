@@ -656,6 +656,105 @@ print(anova(m_rt, type = 3))
 cat("\n=== Response times: first vs second block ===\n")
 print(summary(pairs(rt_emm), infer = TRUE))
 
+rt_plot_data <- rt_data |>
+  dplyr::filter(
+    time_pressure == "Self-paced",
+    block_num == "1"
+  ) |>
+  dplyr::group_by(subject_id) |>
+  dplyr::mutate(
+    trial_in_block = as.numeric(n_trial) -
+      min(as.numeric(n_trial), na.rm = TRUE) + 1,
+    last_trial = max(trial_in_block, na.rm = TRUE)
+  ) |>
+  dplyr::ungroup() |>
+  dplyr::filter(
+    trial_in_block <= 10 | trial_in_block >= last_trial - 9
+  ) |>
+  dplyr::mutate(
+    segment = factor(
+      if_else(trial_in_block <= 10, "First 10 trials", "Last 10 trials"),
+      levels = c("First 10 trials", "Last 10 trials")
+    ),
+    trial_in_segment = if_else(
+      trial_in_block <= 10,
+      trial_in_block,
+      trial_in_block - (last_trial - 10)
+    )
+  )
+
+# Mean RT across participants at each trial position
+rt_trajectory <- rt_plot_data |>
+  dplyr::group_by(format, segment, trial_in_segment) |>
+  dplyr::summarise(
+    mean_rt = mean(analysis_rt_sec, na.rm = TRUE),
+    se_rt = sd(analysis_rt_sec, na.rm = TRUE) /
+      sqrt(sum(is.finite(analysis_rt_sec))),
+    n = sum(is.finite(analysis_rt_sec)),
+    .groups = "drop"
+  ) |>
+  dplyr::mutate(
+    format = factor(
+      format,
+      levels = c("frequency", "probability"),
+      labels = c("Frequency", "Probability")
+    )
+  )
+
+p_rt_trajectory <- ggplot(
+  rt_trajectory,
+  aes(
+    x = trial_in_segment,
+    y = mean_rt
+  )
+) +
+  geom_hline(
+    yintercept = 10,
+    linetype = "dashed",
+    colour = "grey40",
+    linewidth = 0.5
+  ) +
+  geom_errorbar(
+    aes(ymin = mean_rt - se_rt, ymax = mean_rt + se_rt),
+    linewidth = 0.45,
+    width = 0.35,
+    colour = "black"
+  ) +
+  geom_line(
+    linewidth = 0.55,
+    colour = "black"
+  ) +
+  geom_point(
+    size = 1.6,
+    shape = 16,
+    colour = "black"
+  ) +
+  facet_grid(format ~ segment) +
+  scale_x_continuous(
+    breaks = c(1, 5, 10)
+  ) +
+  scale_y_continuous(
+    # Always include 10 (the dashed reference line) as a tick
+    breaks = function(x) sort(unique(c(scales::pretty_breaks(n = 4)(x), 10))),
+    expand = expansion(mult = c(0.02, 0.08))
+  ) +
+  labs(
+    x = "Trial within segment",
+    y = "Mean response time (s)"
+  ) +
+  theme_classic(base_size = 10) +
+  theme(
+    text = element_text(family = "Helvetica"),
+    axis.line = element_line(linewidth = 0.5, colour = "black"),
+    axis.ticks = element_line(linewidth = 0.5, colour = "black"),
+    axis.ticks.length = grid::unit(2, "mm"),
+    strip.background = element_blank(),
+    strip.text = element_text(face = "bold", size = 10),
+    panel.spacing = grid::unit(1.1, "lines")
+  )
+
+print(p_rt_trajectory)
+save_exp2_figure(p_rt_trajectory, "Figure_17")
 # ── 12. Fitted model structures ─────────────────────────────────────────────
 
 ## Records the specification that was actually estimated, i.e. after any
@@ -683,3 +782,4 @@ report_fits(setNames(
   parameter_models,
   paste("09 parameter:", MAIN_PARAMS[names(parameter_models)])
 ))
+
