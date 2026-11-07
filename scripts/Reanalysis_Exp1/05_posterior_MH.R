@@ -106,7 +106,6 @@ filtered_s_mh <- s_mh_nm %>%
 slope_s_mh_non <- slope_t_summary(
   filtered_s_mh,
   mu       = 1,
-  out_path = file.path(out_path, "slope_s_mh_non.tex"),
   caption  = "Slope summary of non exact match for MH Participants in Stengard."
 )
 

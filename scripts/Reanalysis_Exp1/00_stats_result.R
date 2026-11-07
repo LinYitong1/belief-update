@@ -20,7 +20,6 @@ si  <- load_clean_data(Si_path,  type = "sirota")
 # ----------- Reanalyzing Existing Data -----------
 #Conservatism
 slope_s <- slope_t_summary(s, mu = 1, 
-                          out_path = file.path(out_path, "Table_slope_s.tex"),
                           caption = "Slope summary for Stengard.")
 cat("\n=== Table: Slope summary for Stengard ===\n")
 print(slope_s)
